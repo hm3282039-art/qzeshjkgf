@@ -8,6 +8,10 @@ export type Quality = 'ultra' | 'high' | 'low';
 
 export interface PlayerState {
   name: string;
+  /** Cadre de profil affiché (identifiant de FRAMES). */
+  frame: string;
+  /** Titre affiché sous le pseudo (identifiant de TITLES). */
+  title: string;
   level: number;
   xp: number;
   xpMax: number;
@@ -107,6 +111,8 @@ const defaults = (): SaveData => ({
   version: 1,
   player: {
     name: 'Invocateur',
+    frame: 'bronze',
+    title: 'invocateur',
     level: 1,
     xp: 0,
     xpMax: 100,
@@ -477,6 +483,12 @@ class Store extends Emitter<StoreEvents> {
   }
 
   get settings(): Readonly<Settings> { return this.data.settings; }
+
+  /** Change le cadre affiché (aucune condition ici : l'interface ne propose que les cadres débloqués). */
+  setFrame(frame: string): void { this.updatePlayer({ frame }); }
+
+  /** Change le titre affiché. */
+  setTitle(title: string): void { this.updatePlayer({ title }); }
 
   updatePlayer(patch: Partial<PlayerState>): void {
     Object.assign(this.data.player, patch);

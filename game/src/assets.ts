@@ -158,7 +158,6 @@ export const ART: Record<TextureKey, string> = {
 };
 
 /** Décor du chapitre 1 (fond de la carte de campagne). */
-export const CHAPTER1_BG = battleBgUrl;
 
 /** Fond de chaque décor de combat (vignettes de la campagne). */
 export const SCENE_BG: Record<SceneId, string> = {

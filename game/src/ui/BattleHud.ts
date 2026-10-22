@@ -3,7 +3,7 @@ import { audio } from '../audio/AudioEngine';
 import type { BattleResult } from '../battle/BattleScene';
 import { BATTLE_TIME_LIMIT, type BattleSim, type Unit } from '../battle/Sim';
 import { HEROES, type StageDef } from '../data/heroes';
-import { GEAR, SUB_LABEL, mainLabel } from '../data/items';
+import { SUB_LABEL, itemCss, itemRarity, mainLabel } from '../data/items';
 import type { RewardOutcome } from '../state/store';
 import { Emitter } from '../utils/Emitter';
 import { icon } from './icons';
@@ -180,6 +180,72 @@ export class BattleHud extends Emitter<HudEvents> {
   }
 
   /**
+   * Ultime de boss : bande de danger en haut de l'écran, nom de l'attaque et
+   * consigne. Le joueur a 1,15 s pour réagir (étourdir le boss ou bouger).
+   */
+  bossCast(name: string, kind: string, color: number): void {
+    const hint: Record<string, string> = {
+      nova: 'Reculez du boss !',
+      line: 'Sortez de la ligne !',
+      quake: 'Impact au contact — étourdissez-le !',
+      hex: 'Malédiction — éliminez-le vite !',
+      rain: 'Tout le terrain est frappé !',
+      summon: 'Des renforts arrivent !',
+    };
+    const el = document.createElement('div');
+    el.className = 'bh-bosscast';
+    el.style.setProperty('--c', `#${color.toString(16).padStart(6, '0')}`);
+    el.innerHTML = `
+      <div class="bc-fill"></div>
+      <div class="bc-body">
+        <small>Ultime de boss</small>
+        <b>${name}</b>
+        <span>${hint[kind] ?? 'Préparez-vous !'}</span>
+      </div>`;
+    this.el.appendChild(el);
+    audio.play('boss_windup', { vol: 0.5, rate: 1.2 });
+    setTimeout(() => el.remove(), 1500);
+  }
+
+  /** Petite secousse visuelle quand l'ultime de boss touche. */
+  bossImpact(kind: string): void {
+    if (kind === 'cancel') return;
+    const el = this.el.querySelector('.bh-bosscast');
+    el?.classList.add('impact');
+  }
+
+  /* ====================== Entraînement ====================== */
+
+  /**
+   * Barre d'entraînement : dégâts cumulés, DPS et remise à zéro.
+   * Le mannequin est invincible : ce qui compte, c'est le chiffre.
+   */
+  trainingBar(onReset: () => void): void {
+    const el = document.createElement('div');
+    el.className = 'bh-training panel';
+    el.innerHTML = `
+      <div class="bt-head">${icon('swords')} <b>Entraînement</b><small>mannequin invincible</small></div>
+      <div class="bt-nums">
+        <div><small>Dégâts totaux</small><b data-tr="total">0</b></div>
+        <div><small>DPS</small><b data-tr="dps">0</b></div>
+        <div><small>Temps</small><b data-tr="time">0:00</b></div>
+      </div>
+      <button class="btn dark tiny" data-b="reset">${icon('refresh')} Remettre à zéro</button>`;
+    el.querySelector('[data-b="reset"]')?.addEventListener('click', () => { audio.click(); onReset(); });
+    this.el.appendChild(el);
+  }
+
+  tickTraining(total: number, dps: number, time: number): void {
+    const set = (k: string, v: string): void => {
+      const n = this.el.querySelector(`[data-tr="${k}"]`);
+      if (n && n.textContent !== v) n.textContent = v;
+    };
+    set('total', fmt(total));
+    set('dps', fmt(dps));
+    set('time', clock(time));
+  }
+
+  /**
    * Lien d'équipe : deux héros qui se connaissent entrent ensemble.
    * Petit encart discret sous le bandeau, qui s'efface tout seul.
    */
@@ -327,11 +393,11 @@ export class BattleHud extends Emitter<HudEvents> {
         <div class="rw xp">${icon('star')}<b data-count="${outcome?.xp ?? stage.rewards.xp}">+0</b><small>Expérience</small></div>
       </div>
       ${outcome?.drop ? `
-      <div class="rloot" style="--rc:${GEAR[outcome.drop.rarity].css}">
+      <div class="rloot" style="--rc:${itemCss(outcome.drop)}">
         <div class="rloot-ico">${icon(outcome.drop.slot === 'weapon' ? 'swords' : outcome.drop.slot === 'armor' ? 'shield' : outcome.drop.slot === 'helm' ? 'helmet' : 'arrow')}</div>
         <div class="rloot-txt">
           <b>${outcome.drop.name}</b>
-          <small>${GEAR[outcome.drop.rarity].name} · ${mainLabel(outcome.drop.slot)} +${outcome.drop.main}%${outcome.drop.subs.length ? ' · ' + outcome.drop.subs.map((x) => `${SUB_LABEL[x.stat]} +${x.value}%`).join(' · ') : ''}</small>
+          <small>${itemRarity(outcome.drop)} · ${mainLabel(outcome.drop.slot)} +${outcome.drop.main}%${outcome.drop.subs.length ? ' · ' + outcome.drop.subs.map((x) => `${SUB_LABEL[x.stat]} +${x.value}%`).join(' · ') : ''}${outcome.drop.effect ? ` · <b>${outcome.drop.effect.name}</b>` : ''}</small>
         </div>
         <div class="rloot-tag">Butin</div>
       </div>` : ''}

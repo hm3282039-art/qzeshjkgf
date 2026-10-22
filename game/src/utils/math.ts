@@ -4,7 +4,6 @@ export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
 export const damp = (a: number, b: number, lambda: number, dt: number): number =>
   lerp(a, b, 1 - Math.exp(-lambda * dt));
 export const rand = (min: number, max: number): number => min + Math.random() * (max - min);
-export const randInt = (min: number, max: number): number => Math.floor(rand(min, max + 1));
 export const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
 export type Range = readonly [number, number];
 export const inRange = (r: Range): number => rand(r[0], r[1]);

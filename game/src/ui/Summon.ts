@@ -5,9 +5,11 @@ import { COST, ITEMS, PITY, RATES, SUMMON_POOL, type PullResult } from '../data/
 import { store } from '../state/store';
 import { icon } from './icons';
 import { starsHTML } from './stars';
+import { motifSVG, signatureOf } from './signatures';
 import type { UI } from './UI';
 
 const fmt = (n: number): string => n.toLocaleString('fr-FR');
+const backVol = (v: number): number => Math.min(1, v);
 const pct = (x: number): string => `${(x * 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %`;
 const RANK: Record<Rarity, number> = { R: 0, SR: 1, SSR: 2 };
 const RCOLOR: Record<Rarity, string> = { R: '#6ab8ff', SR: '#b77aff', SSR: '#ffd84a' };
@@ -106,40 +108,75 @@ export class SummonScreen {
     const fx = document.createElement('div');
     fx.className = `summon-fx best-${best}`;
     fx.style.setProperty('--bc', RCOLOR[best]);
-    const motes = Array.from({ length: 36 }, (_, i) => {
-      const a = (i / 36) * Math.PI * 2 + Math.random() * 0.3;
-      const d = 30 + Math.random() * 25;
-      return `<i style="--x:${(Math.cos(a) * d).toFixed(1)}rem;--y:${(Math.sin(a) * d * 0.7).toFixed(1)}rem;--d:${(Math.random() * 1.1).toFixed(2)}s"></i>`;
+    const motes = Array.from({ length: 44 }, (_, i) => {
+      const a = (i / 44) * Math.PI * 2 + Math.random() * 0.3;
+      const d = 26 + Math.random() * 30;
+      return `<i style="--x:${(Math.cos(a) * d).toFixed(1)}rem;--y:${(Math.sin(a) * d * 0.7).toFixed(1)}rem;--d:${(Math.random() * 1.3).toFixed(2)}s"></i>`;
+    }).join('');
+    const shards = Array.from({ length: 9 }, (_, i) => {
+      const a = (i / 9) * Math.PI * 2;
+      return `<i style="--a:${((a * 180) / Math.PI).toFixed(0)}deg;--r:${(7 + (i % 3) * 3).toFixed(0)}rem;--d:${(i * 0.05).toFixed(2)}s"></i>`;
     }).join('');
     fx.innerHTML = `
       <div class="sf-bg"></div>
+      <div class="sf-veil"></div>
       <div class="sf-stage">
         <div class="sf-circle">${RUNE_CIRCLE}</div>
+        <div class="sf-shards">${shards}</div>
+        <div class="sf-seam"><i></i><i></i></div>
         <div class="sf-motes">${motes}</div>
-        <div class="sf-orb"></div>
+        <div class="sf-core"></div>
         <div class="sf-pillar"></div>
       </div>
+      <div class="sf-whisper">L’autel écoute…</div>
       <div class="sf-flash"></div>
       <div class="sf-skip">Clique pour passer</div>`;
     this.ui.root.appendChild(fx);
     audio.play('riser', { vol: 0.9 });
     audio.play('summon', { delay: 0.15, rate: 0.8 });
-    audio.duck(0.5, 0.3, 2.5);
+    audio.duck(0.5, 0.3, 2.8);
     const timers: number[] = [];
     const later = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
-    // Le cercle change de couleur pour annoncer la rareté (violet → or pour un SSR !)
-    if (best !== 'R') later(1050, () => { fx.classList.add('tease'); audio.play(best === 'SSR' ? 'choir' : 'light_cast', { vol: best === 'SSR' ? 0.8 : 0.6, rate: best === 'SSR' ? 1 : 0.8 }); });
-    later(1650, () => audio.play('braam', { vol: 0.9 }));
+
+    // ACTE I — l'autel s'éveille (0,0 → 0,7 s)
+    later(500, () => {
+      fx.classList.add('wake');
+      const w = fx.querySelector<HTMLElement>('.sf-whisper');
+      if (w) w.textContent = best === 'SSR' ? 'Quelque chose descend…' : best === 'SR' ? 'Une âme répond.' : 'L’écho se précise.';
+      audio.play('blink', { vol: 0.4, rate: 0.8 });
+    });
+
+    // ACTE II — le seuil s'ouvre (0,7 → 1,5 s) : la rareté change la couleur du rituel
+    if (best !== 'R') {
+      later(760, () => {
+        fx.classList.add('tease');
+        audio.play(best === 'SSR' ? 'choir' : 'light_cast', { vol: best === 'SSR' ? 0.85 : 0.6, rate: best === 'SSR' ? 1 : 0.8 });
+      });
+    }
+    later(1150, () => {
+      fx.classList.add('seam');
+      audio.play('boss_windup', { vol: backVol(best === 'SSR' ? 0.9 : 0.4), rate: best === 'SSR' ? 0.7 : 1 });
+    });
+
+    // ACTE III — la réponse (1,5 → 1,9 s)
+    later(1580, () => {
+      fx.classList.add('shatter');
+      audio.play('braam', { vol: best === 'SSR' ? 1 : 0.7, rate: best === 'SSR' ? 0.9 : 1.1 });
+      this.ui.root.classList.add('summon-shake');
+      window.setTimeout(() => this.ui.root.classList.remove('summon-shake'), 420);
+    });
+
     let revealed = false;
     const reveal = () => {
       if (revealed) return;
       revealed = true;
       timers.forEach(clearTimeout);
       fx.classList.add('flash');
-      audio.play('ult_impact', { vol: 0.7, rate: 1.1 });
-      window.setTimeout(() => this.showCards(fx, results, count), 260);
+      audio.play('ult_impact', { vol: 0.75, rate: 1.1 });
+      if (best === 'SSR') audio.play('choir', { delay: 0.05, vol: 0.9 });
+      window.setTimeout(() => this.showCards(fx, results, count), 280);
     };
-    later(1900, reveal);
+    later(2050, reveal);
     fx.addEventListener('click', reveal, { once: true });
   }
 
@@ -200,30 +237,55 @@ export class SummonScreen {
     });
   }
 
-  /** Présentation plein écran d'un nouveau héros (façon « nouveau personnage obtenu »). */
+  /**
+   * Présentation plein écran d'un nouveau héros.
+   *
+   * La scène est commune (fond noir, rayons, illustration), mais CHAQUE héros
+   * apporte sa signature : son symbole tourne derrière lui, son geste découpe
+   * l'écran, sa phrase s'inscrit sous son nom. Un SSR dure plus longtemps et
+   * déclenche sa signature complète ; un SR garde une version courte.
+   */
   private showcase(fx: HTMLElement, heroes: HeroDef[]): void {
     const box = fx.querySelector<HTMLElement>('.sf-show');
     if (!box || !heroes.length || !fx.isConnected) return;
     const [h, ...rest] = heroes as [HeroDef, ...HeroDef[]];
+    const sig = signatureOf(h);
+    const ssr = h.rarity === 'SSR';
     box.style.setProperty('--c', h.css);
+    box.className = `sf-show ss-${h.rarity.toLowerCase()} mot-${sig.motion} sig-${sig.motif}`;
     box.innerHTML = `
+      <div class="ss-veil"></div>
+      <div class="ss-sig" aria-hidden="true">
+        <svg class="sig-svg" viewBox="-100 -100 200 200">${motifSVG(sig.motif)}</svg>
+        <svg class="sig-svg echo" viewBox="-100 -100 200 200">${motifSVG(sig.motif)}</svg>
+      </div>
       <div class="ss-rays"></div>
+      <div class="ss-streaks">${Array.from({ length: 14 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
       <img class="ss-art" src="${ART[h.texture]}" alt="" draggable="false"/>
       <div class="ss-info">
-        <div class="ss-new">Nouveau héros !</div>
+        <div class="ss-new">${ssr ? 'Héros légendaire' : 'Nouveau héros'} !</div>
         <span class="hd-rar ${h.rarity}">${h.rarity}</span>
         <h2>${h.name}</h2>
         <div class="ss-title">${h.title}</div>
         ${starsHTML(store.starsOf(h))}
+        <div class="ss-phrase">« ${sig.phrase} »</div>
         <p>${h.quote}</p>
         <small>Clique pour continuer</small>
-      </div>`;
+      </div>
+      <div class="ss-sigmark">${ssr ? 'SIGNATURE' : 'INVOQUÉ'}</div>`;
     box.classList.remove('show');
     void box.offsetWidth;
     box.classList.add('show');
-    audio.play('cutin');
-    audio.play(h.rarity === 'SSR' ? 'ult_impact' : 'braam', { delay: 0.1, vol: 0.8 });
-    if (h.rarity === 'SSR') audio.play('choir', { delay: 0.2, vol: 0.6 });
+    // Bande-son propre : la signature du héros, pas un son générique.
+    audio.play(sig.sound, { vol: 0.9 });
+    audio.play('cutin', { delay: 0.05, vol: 0.6 });
+    if (ssr) {
+      audio.play('ult_impact', { delay: 0.18, vol: 0.8 });
+      audio.play('choir', { delay: 0.34, vol: 0.55 });
+      audio.play('star', { delay: 0.5, rate: 0.7 });
+    }
+    this.ui.root.classList.add(`sig-${sig.motion}`);
+    window.setTimeout(() => this.ui.root.classList.remove(`sig-${sig.motion}`), 1400);
     const next = () => {
       box.classList.remove('show');
       if (rest.length) window.setTimeout(() => this.showcase(fx, rest), 250);

@@ -134,6 +134,19 @@ export const bondsIn = (ids: readonly string[]): BondDef[] =>
 export const bondBonusFor = (id: string, ids: readonly string[]): number =>
   bondsIn(ids).filter((x) => x.a === id || x.b === id).reduce((s, x) => s + x.bonus, 0);
 
+/** Ulime propre à un boss : nom, mise en scène et effet. */
+export interface BossUlt {
+  name: string;
+  /** Phrase affichée pendant la montée (le joueur sait ce qui arrive). */
+  text: string;
+  kind: 'nova' | 'line' | 'quake' | 'hex' | 'rain' | 'summon';
+  /** Recharge (s) et premier lancement. */
+  cd: number;
+  first: number;
+  /** Multiplicateur d'ATQ du coup. */
+  mult: number;
+}
+
 export interface UnitDef {
   id: string;
   name: string;
@@ -151,6 +164,10 @@ export interface UnitDef {
   /** Recharge de la compétence (s) et premier lancement. */
   skillCd?: number;
   skillFirst?: number;
+  /** Un boss peut réutiliser la compétence d'une autre créature (« skillAs »). */
+  skillAs?: string;
+  /** Ulime de boss, joué à intervalle régulier avec une montée télégraphiée. */
+  bossUlt?: BossUlt;
   color: number;
 }
 
@@ -432,6 +449,10 @@ export const ENEMIES = {
     cls: 'combat',
     stats: { hp: 6800, atk: 168, armor: 88, res: 10, interval: 1.8, range: 175, speed: 120, crit: 0.1 },
     skillCd: 7, skillFirst: 5,
+    bossUlt: {
+      name: 'Broyeur d’Ossements', text: 'Le Gardien lève son pilon : l’impact souffle tout autour de lui.',
+      kind: 'quake', cd: 16, first: 14, mult: 1.9,
+    },
   },
   spectral: {
     id: 'spectral', name: 'Goule spectrale', texture: 'enemy_ghoul', height: 130, facesRight: false, color: 0x7affd0,
@@ -453,6 +474,10 @@ export const ENEMIES = {
   queen: {
     id: 'queen', name: 'La Reine Noyée', texture: 'enemy_queen', height: 300, facesRight: false, color: 0x4ae0d0,
     cls: 'nature',
+    bossUlt: {
+      name: 'Raz-de-Marée', text: 'La Reine appelle l’eau noire : toute l’arène se noie.',
+      kind: 'rain', cd: 18, first: 16, mult: 1.7,
+    },
     stats: { hp: 9200, atk: 180, armor: 22, res: 66, interval: 1.9, range: 190, speed: 110, crit: 0.1 },
     skillCd: 7.5, skillFirst: 5,
   },
@@ -470,14 +495,19 @@ export type SceneId = 'gallows' | 'swamp' | 'citadel' | 'throne';
  * La courbe devient lisible, et un futur chapitre n'a qu'à continuer la série.
  */
 export const STAGE_HP_BASE = 12900;
-export const STAGE_HP_STEP = 1.21;
+/**
+ * Les PV montent de 35 % par CHAPITRE (pas par palier) : la campagne compte
+ * désormais 10 chapitres et 50 niveaux, une exponentielle par palier deviendrait
+ * rapidement infaisable. La puissance des héros, elle, monte avec le niveau et l'équipement.
+ */
+export const STAGE_HP_STEP = 1.44;
 /** L'ATQ monte moins vite que les PV : la difficulté vient de la survie, pas du temps de combat. */
-export const STAGE_ATK_STEP = 1.16;
+export const STAGE_ATK_STEP = 1.28;
 
 export const stageEnemyScale = (stage: StageDef): { hp: number; atk: number } => {
   const base = stage.enemies.reduce((a, e) => a + e.def.stats.hp, 0) || 1;
-  const target = STAGE_HP_BASE * Math.pow(STAGE_HP_STEP, stage.tier);
-  return { hp: target / base, atk: Math.pow(STAGE_ATK_STEP, stage.tier) };
+  const target = STAGE_HP_BASE * Math.pow(STAGE_HP_STEP, stage.tier / 5);
+  return { hp: target / base, atk: Math.pow(STAGE_ATK_STEP, stage.tier / 5) };
 };
 
 export interface StageDef {
@@ -526,200 +556,277 @@ export const STAGE_PROFILE_TEXT: Record<StageProfile, { tag: string; hint: strin
   mixed: { tag: 'Mixte', hint: 'Défenses mêlées — équipe équilibrée', css: 'mixed' },
 };
 
-export const STAGES: StageDef[] = [
+export interface ChapterDef {
+  id: number;
+  name: string;
+  subtitle: string;
+  scenes: readonly SceneId[];
+  stages: readonly string[];
+}
+
+export const CHAPTERS: ChapterDef[] = [
   {
-    id: '1-1',
-    tier: 0,
-    name: 'La Route des Pendus',
-    scene: 'gallows',
-    tip: 'L’étourdissement de Kael peut <b>interrompre</b> l’attaque tournoyante du Gardien d’Os !',
-    description: 'À la sortie de Cendrebourg, les morts ne restent pas en terre. Un Gardien d’Os mène les goules vers la ville : arrête-le avant la nuit noire.',
-    power: 13800,
-    energy: 6,
-    rewards: { gold: 2400, gems: 90, xp: 180 },
-    enemies: [
-      { def: ENEMIES.ghoul, x: 1270, y: 715 },
-      { def: ENEMIES.ghoul, x: 1290, y: 865 },
-      { def: ENEMIES.warden, x: 1440, y: 790, boss: true },
-      { def: ENEMIES.skeleton, x: 1630, y: 705 },
-      { def: ENEMIES.skeleton, x: 1650, y: 885 },
-    ],
+    id: 1, name: 'Les Faubourgs Maudits',
+    subtitle: 'La route des pendus, les fossés, les premières goules.',
+    scenes: ['gallows', 'swamp', 'gallows', 'swamp', 'gallows'],
+    stages: ['La Route des Pendus', 'Le Marais des Noyés', 'Les Ossuaires', 'Le Chœur des Noyées', 'La Porte de Cendrebourg'],
   },
   {
-    id: '1-2',
-    tier: 0.5,
-    name: 'Le Marais des Noyés',
-    scene: 'swamp',
-    requires: '1-1',
-    tip: 'Étourdis ou <b>gèle</b> la Reine pendant qu’elle prépare son <b>Raz-de-marée</b> pour l’annuler. Les Sorcières, fragiles, sont la cible idéale des sorts de zone.',
-    description: 'Au-delà de la route, les eaux noires du marais engloutissent les voyageurs. Leur reine les relève, et des sorcières chantent pour elle. Ne laisse personne t’entraîner sous la surface.',
-    power: 14200,
-    energy: 6,
-    rewards: { gold: 3300, gems: 180, xp: 240 },
-    enemies: [
-      { def: ENEMIES.drowned, x: 1260, y: 720 },
-      { def: ENEMIES.drowned, x: 1280, y: 870 },
-      { def: ENEMIES.queen, x: 1450, y: 795, boss: true },
-      { def: ENEMIES.witch, x: 1640, y: 710 },
-      { def: ENEMIES.witch, x: 1660, y: 880 },
-    ],
+    id: 2, name: 'Le Royaume de Cendre',
+    subtitle: 'Une capitale calcinée où le trône attend encore son roi.',
+    scenes: ['citadel', 'throne', 'citadel', 'throne', 'throne'],
+    stages: ['Les Remparts Calcinés', 'La Cour des Bannières', 'La Salle du Trône', 'Le Puits aux Couronnes', 'Le Roi sans Visage'],
   },
   {
-    id: '1-3',
-    tier: 1.5,
-    name: 'Les Ossuaires',
-    scene: 'gallows',
-    requires: '1-2',
-    tip: 'Les archers squelettes frappent de loin : <b>envoie Lyra sur eux</b> plutôt que de les laisser tirer. Le Gardien d’Os revient — étourdis-le avant sa frappe tournoyante.',
-    description: 'Sous la route, les galeries s’enfoncent dans l’ossuaire. Des archers y montent la garde depuis des siècles, et quelque chose de plus lourd remue dans le noir.',
-    power: 14800,
-    energy: 6,
-    rewards: { gold: 4200, gems: 240, xp: 300 },
-    enemies: [
-      { def: ENEMIES.skeleton, x: 1250, y: 700 },
-      { def: ENEMIES.skeleton, x: 1270, y: 860 },
-      { def: ENEMIES.ghoul, x: 1400, y: 780 },
-      { def: ENEMIES.ghoul, x: 1420, y: 890 },
-      { def: ENEMIES.warden, x: 1560, y: 800, boss: true },
-      { def: ENEMIES.skeleton, x: 1680, y: 780 },
-    ],
+    id: 3, name: 'La Nécropole Engloutie',
+    subtitle: 'Des cryptes sous les eaux, où les morts apprennent à nager.',
+    scenes: ['swamp', 'swamp', 'swamp', 'swamp', 'swamp'],
+    stages: ['La Crypte Basse', 'Le Puits des Noyés', 'Les Galeries Molles', 'Le Lagon Sourd', 'Le Ventre de la Nécropole'],
   },
   {
-    id: '1-4',
-    tier: 2.5,
-    name: 'Le Chœur des Noyées',
-    scene: 'swamp',
-    requires: '1-3',
-    tip: 'Les Sorcières lancent des maléfices à distance et <b>brûlent</b> leurs cibles. Purifie avec Aldric, ou tue-les avant qu’elles ne chantent trois fois.',
-    description: 'Plus loin dans le marais, l’eau se met à chanter. Trois voix, puis quatre. Les Noyées écoutent, et elles n’aiment pas les intrus.',
-    power: 15400,
-    energy: 6,
-    rewards: { gold: 5100, gems: 300, xp: 360 },
-    enemies: [
-      { def: ENEMIES.warden, x: 1250, y: 800, boss: true },
-      { def: ENEMIES.drowned, x: 1350, y: 710 },
-      { def: ENEMIES.witch, x: 1470, y: 880 },
-      { def: ENEMIES.drowned, x: 1560, y: 720 },
-      { def: ENEMIES.witch, x: 1680, y: 850 },
-    ],
+    id: 4, name: 'Les Aiguilles de Verre',
+    subtitle: 'Une forêt de cristal qui coupe la lumière et les hommes.',
+    scenes: ['citadel', 'citadel', 'citadel', 'citadel', 'citadel'],
+    stages: ['Le Seuil de Verre', 'La Forêt Tranchante', 'Les Aiguilles', 'Le Prisme', 'Le Cœur de Verre'],
   },
   {
-    id: '1-5',
-    tier: 4,
-    name: 'Le Trône Englouti',
-    scene: 'swamp',
-    requires: '1-4',
-    tip: 'La Reine prépare son <b>Raz-de-marée</b> : étourds ou gèle-la pour l’annuler. Sans elle, le chœur se disperse — c’est là qu’il faut frapper.',
-    description: 'Au fond du marais, un trône de bois mort affleure. La Reine Noyée y attend, et l’eau monte à mesure qu’elle chante. Fini le chapitre si elle se lève.',
-    power: 17000,
-    energy: 7,
-    rewards: { gold: 6300, gems: 390, xp: 440 },
-    enemies: [
-      { def: ENEMIES.witch, x: 1250, y: 700 },
-      { def: ENEMIES.drowned, x: 1300, y: 860 },
-      { def: ENEMIES.queen, x: 1480, y: 795, boss: true },
-      { def: ENEMIES.drowned, x: 1600, y: 720 },
-      { def: ENEMIES.witch, x: 1670, y: 870 },
-    ],
+    id: 5, name: 'Le Chœur des Abysses',
+    subtitle: 'Quelque chose chante sous la croûte du monde.',
+    scenes: ['swamp', 'throne', 'swamp', 'throne', 'swamp'],
+    stages: ['La Faille', 'La Voix Sous l’Eau', 'Le Chœur Muet', 'Les Cloches Noyées', 'L’Abîme Chantant'],
   },
   {
-    id: '2-1',
-    tier: 5,
-    name: 'Les Cloches Fêlées',
-    scene: 'throne',
-    requires: '1-5',
-    tip: 'Les archers squelettes tirent sans relâche : <b>élimine-les en premier</b> ou étourdis-les. Gorm et Vaelen encaissent bien mieux que les mages.',
-    description: 'La route mène à une cathédrale dont les cloches sonnent seules. Personne ne les tire. Les morts y ont élu domicile, et ils n’aiment pas les cloches qui sonnent faux.',
-    power: 22000,
-    energy: 7,
-    rewards: { gold: 7800, gems: 450, xp: 500 },
-    enemies: [
-      { def: ENEMIES.skeleton, x: 1250, y: 700 },
-      { def: ENEMIES.ghoul, x: 1300, y: 860 },
-      { def: ENEMIES.ghoul, x: 1420, y: 780 },
-      { def: ENEMIES.skeleton, x: 1560, y: 880 },
-      { def: ENEMIES.skeleton, x: 1600, y: 715 },
-      { def: ENEMIES.warden, x: 1680, y: 800, boss: true },
-    ],
+    id: 6, name: 'La Forge des Âmes',
+    subtitle: 'Les enclumes tournent encore, sans forgeron.',
+    scenes: ['citadel', 'citadel', 'throne', 'citadel', 'citadel'],
+    stages: ['Les Enclumes', 'Le Couloir des Soufflets', 'La Fournaise', 'Les Âmes en Fleurs', 'Le Grand Marteau'],
   },
   {
-    id: '2-2',
-    tier: 6.5,
-    name: 'Le Chœur des Damnés',
-    scene: 'citadel',
-    requires: '2-1',
-    tip: 'Trois Sorcières qui chantent ensemble, c’est trois fois plus de maléfices. <b>Coupe le chœur</b> : tue-en une, les autres perdent leur rythme.',
-    description: 'Sous la nef, l’eau monte encore. Des voix chantent en latin et les cierges brûlent à l’envers. Ce n’est pas une messe : c’est une invocation.',
-    power: 24000,
-    energy: 7,
-    rewards: { gold: 9000, gems: 510, xp: 580 },
-    enemies: [
-      { def: ENEMIES.witch, x: 1260, y: 710 },
-      { def: ENEMIES.witch, x: 1330, y: 870 },
-      { def: ENEMIES.drowned, x: 1440, y: 790 },
-      { def: ENEMIES.spectral, x: 1520, y: 700 },
-      { def: ENEMIES.drowned, x: 1600, y: 830 },
-      { def: ENEMIES.witch, x: 1660, y: 880 },
-    ],
+    id: 7, name: 'Le Trône de Suie',
+    subtitle: 'Le roi calciné tient sa cour. Elle est faite de cendres.',
+    scenes: ['throne', 'throne', 'citadel', 'throne', 'throne'],
+    stages: ['Le Parvis de Suie', 'La Cour Calcinée', 'Le Banquet de Cendres', 'Les Bannières Mortes', 'Le Trône de Suie'],
   },
   {
-    id: '2-3',
-    tier: 7.5,
-    name: 'La Nef Noire',
-    scene: 'throne',
-    requires: '2-2',
-    tip: 'Les Goules spectrales sont fragiles mais rapides : les sorts de zone de Morwen ou Pyrrha les balaient d’un coup.',
-    description: 'La nef centrale est noire de suie. Les bancs sont occupés, tous tournés vers l’autel. Aucun ne respire. Aucun ne bouge — sauf quand la cloche sonne.',
-    power: 27000,
-    energy: 8,
-    rewards: { gold: 10200, gems: 570, xp: 660 },
-    enemies: [
-      { def: ENEMIES.skeleton, x: 1240, y: 700 },
-      { def: ENEMIES.skeleton, x: 1270, y: 860 },
-      { def: ENEMIES.ghoul, x: 1400, y: 780 },
-      { def: ENEMIES.ghoul, x: 1430, y: 890 },
-      { def: ENEMIES.warden, x: 1600, y: 800, boss: true },
-    ],
+    id: 8, name: 'Les Jardins de Sel',
+    subtitle: 'Des fleurs de sel poussent sur les noyés.',
+    scenes: ['swamp', 'gallows', 'swamp', 'gallows', 'swamp'],
+    stages: ['Le Jardin Blanc', 'La Roseraie de Sel', 'Les Statues de Sel', 'Le Labyrinthe Blanc', 'La Jardinière'],
   },
   {
-    id: '2-4',
-    tier: 8.5,
-    name: 'Le Caveau des Rois',
-    scene: 'citadel',
-    requires: '2-3',
-    tip: 'Deux Gardiens d’Os valsent en même temps. <b>Étourdis-en un</b> pendant que tu tues l’autre, sinon leurs frappes se cumulent.',
-    description: 'Sous la cathédrale, les rois morts attendent debout. Leurs gardiens n’ont jamais reçu l’ordre de se coucher, et l’ordre ne viendra plus.',
-    power: 34000,
-    energy: 8,
-    rewards: { gold: 11700, gems: 645, xp: 760 },
-    enemies: [
-      { def: ENEMIES.warden, x: 1280, y: 720, boss: true },
-      { def: ENEMIES.drowned, x: 1360, y: 870 },
-      { def: ENEMIES.witch, x: 1480, y: 790 },
-      { def: ENEMIES.warden, x: 1660, y: 850, boss: true },
-    ],
+    id: 9, name: 'La Cité Inversée',
+    subtitle: 'Les tours pendent vers le ciel ; le sol est un plafond.',
+    scenes: ['citadel', 'throne', 'citadel', 'throne', 'citadel'],
+    stages: ['La Porte Renversée', 'Les Toits du Dessous', 'Le Ciel Creux', 'Les Clochers Bas', 'Le Miroir de la Cité'],
   },
   {
-    id: '2-5',
-    tier: 9.5,
-    name: 'Le Trône de Cendre',
-    scene: 'throne',
-    requires: '2-4',
-    tip: 'La Reine revient avec un Gardien à ses côtés. <b>Annule son Raz-de-marée</b> par un étourdissement, puis achève-la : le Gardien tombe avec elle.',
-    description: 'Au fond du caveau, un trône de cendre et une reine qui n’a jamais accepté de mourir. La cloche sonne une dernière fois. Cette fois, c’est pour toi.',
-    power: 42000,
-    energy: 9,
-    rewards: { gold: 13800, gems: 750, xp: 900 },
-    enemies: [
-      { def: ENEMIES.warden, x: 1260, y: 710, boss: true },
-      { def: ENEMIES.witch, x: 1350, y: 870 },
-      { def: ENEMIES.queen, x: 1500, y: 795, boss: true },
-      { def: ENEMIES.drowned, x: 1620, y: 720 },
-      { def: ENEMIES.witch, x: 1690, y: 860 },
-    ],
+    id: 10, name: 'L’Œil de la Tour',
+    subtitle: 'Le sommet n’existe pas. Il n’y a que l’œil.',
+    scenes: ['throne', 'throne', 'throne', 'throne', 'throne'],
+    stages: ['Le Seuil', 'L’Escalier Sans Fin', 'La Salle des Records', 'Le Dernier Palier', 'L’Œil'],
   },
 ];
 
+/** Phrase d’ambiance du niveau (varie selon la position dans le chapitre). */
+const STAGE_FLAVOUR = [
+  'Les éclaireurs tombent un par un : la route s’ouvre.',
+  'Un détour obligé, un pont qui grince, et l’odeur qui monte.',
+  'Le passage se referme derrière toi. Pas de retour.',
+  'Les murs suintent. Quelque chose compte tes pas.',
+  'Dernier palier avant la salle suivante : tout ce qui vit ici t’attend.',
+];
+
+/**
+ * Les 18 boss forgés pour les chapitres 3 à 10.
+ * Chacun reprend le corps d’une créature connue, mais avec sa taille, sa teinte,
+ * ses statistiques et surtout SON ultime, joué en combat avec une montée télégraphiée.
+ */
+const ult_texts: Record<BossUlt["kind"], string> = {
+  nova: 'Le boss rassemble son pouvoir et le relâche autour de lui : recule ou encaisse.',
+  line: 'Une ligne de destruction se dessine au sol : sors du couloir.',
+  quake: 'Le sol tremble : l’impact étourdit tous ceux qui restent au contact.',
+  hex: 'Une malédiction se referme : dégâts continus et défense entamée.',
+  rain: 'Le ciel se charge : tout le terrain est frappé, il faut encaisser.',
+  summon: 'Le boss appelle ses suivants : de nouvelles cibles entrent en scène.',
+};
+
+
+const mkBoss = (base: UnitDef, b: { id: string; name: string; color: number; hp: number; atk: number; armor: number; res: number; height: number; ult: { name: string; kind: BossUlt["kind"]; cd: number; first: number; mult: number } }): UnitDef => ({
+  ...base,
+  id: b.id,
+  name: b.name,
+  color: b.color,
+  height: Math.round(base.height * b.height),
+  skillAs: base.id,
+  stats: { ...base.stats, hp: Math.round(base.stats.hp * b.hp), atk: Math.round(base.stats.atk * b.atk), armor: Math.round(base.stats.armor * b.armor), res: Math.round(base.stats.res * b.res) },
+  bossUlt: { ...b.ult, text: ult_texts[b.ult.kind] },
+});
+
+const BOSS_BASE: Record<string, UnitDef> = {
+  warden: ENEMIES.warden, queen: ENEMIES.queen, boneknight: ENEMIES.warden, witch: ENEMIES.witch,
+  drowned: ENEMIES.drowned, skeleton: ENEMIES.skeleton, spectral: ENEMIES.spectral, ghoul: ENEMIES.ghoul,
+};
+
+const BOSSES: Record<string, UnitDef> = {
+  warden: ENEMIES.warden, queen: ENEMIES.queen,
+  boss_ashknight: mkBoss(BOSS_BASE.boneknight!, {
+    id: 'boss_ashknight', name: 'Chevalier de Suie', color: 0xff6a3d, hp: 1.15, atk: 1.1, armor: 1.2, res: 0.8, height: 1.05,
+    ult: { name: 'Charge de Suie', kind: 'line', cd: 20, first: 18, mult: 1.77 },
+  }),
+  boss_redwidow: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_redwidow', name: 'La Veuve Écarlate', color: 0xff2f5e, hp: 1.1, atk: 1.25, armor: 0.8, res: 1.3, height: 1.05,
+    ult: { name: 'Litanie de Sang', kind: 'hex', cd: 16, first: 14, mult: 1.8 },
+  }),
+  boss_drownmonk: mkBoss(BOSS_BASE.drowned!, {
+    id: 'boss_drownmonk', name: 'Le Moine Noyé', color: 0x5fd8c0, hp: 1.2, atk: 1.05, armor: 1.1, res: 1.2, height: 1.1,
+    ult: { name: 'Étreinte des Profondeurs', kind: 'nova', cd: 18, first: 16, mult: 1.84 },
+  }),
+  boss_devourer: mkBoss(BOSS_BASE.queen!, {
+    id: 'boss_devourer', name: 'L’Engloutisseur', color: 0x2fbfae, hp: 1.25, atk: 1.15, armor: 1.0, res: 1.1, height: 1.25,
+    ult: { name: 'Gouffre', kind: 'summon', cd: 20, first: 18, mult: 1.88 },
+  }),
+  boss_glassarcher: mkBoss(BOSS_BASE.skeleton!, {
+    id: 'boss_glassarcher', name: 'L’Archer de Verre', color: 0xaef0ff, hp: 1.05, atk: 1.3, armor: 1.0, res: 1.1, height: 1.1,
+    ult: { name: 'Pluie de Verre', kind: 'rain', cd: 16, first: 14, mult: 1.91 },
+  }),
+  boss_prism: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_prism', name: 'Le Polymathe', color: 0xd6b3ff, hp: 1.15, atk: 1.3, armor: 0.9, res: 1.4, height: 1.1,
+    ult: { name: 'Éclat Prismatique', kind: 'line', cd: 18, first: 16, mult: 1.95 },
+  }),
+  boss_mutechoir: mkBoss(BOSS_BASE.spectral!, {
+    id: 'boss_mutechoir', name: 'Le Chœur Muet', color: 0x9dffe8, hp: 1.35, atk: 1.1, armor: 0.9, res: 1.3, height: 1.2,
+    ult: { name: 'Chant du Silence', kind: 'hex', cd: 20, first: 18, mult: 1.98 },
+  }),
+  boss_marshmother: mkBoss(BOSS_BASE.queen!, {
+    id: 'boss_marshmother', name: 'La Mère des Marais', color: 0x7fe06a, hp: 1.3, atk: 1.1, armor: 1.05, res: 1.15, height: 1.3,
+    ult: { name: 'Marée Noire', kind: 'nova', cd: 16, first: 14, mult: 2.02 },
+  }),
+  boss_soulsmith: mkBoss(BOSS_BASE.warden!, {
+    id: 'boss_soulsmith', name: 'Le Forgeron d’Âmes', color: 0xffb02a, hp: 1.3, atk: 1.15, armor: 1.25, res: 0.9, height: 1.15,
+    ult: { name: 'Enclume des Âmes', kind: 'quake', cd: 18, first: 16, mult: 2.05 },
+  }),
+  boss_ember: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_ember', name: 'La Braise', color: 0xff7a2a, hp: 1.15, atk: 1.35, armor: 0.85, res: 1.35, height: 1.05,
+    ult: { name: 'Fournaise', kind: 'rain', cd: 20, first: 18, mult: 2.08 },
+  }),
+  boss_cinderking: mkBoss(BOSS_BASE.boneknight!, {
+    id: 'boss_cinderking', name: 'Le Roi Calciné', color: 0xff4a4a, hp: 1.35, atk: 1.2, armor: 1.25, res: 1.0, height: 1.25,
+    ult: { name: 'Couronne de Flammes', kind: 'nova', cd: 16, first: 14, mult: 2.12 },
+  }),
+  boss_royalhand: mkBoss(BOSS_BASE.warden!, {
+    id: 'boss_royalhand', name: 'La Main du Roi', color: 0xc2183c, hp: 1.4, atk: 1.2, armor: 1.3, res: 0.9, height: 1.2,
+    ult: { name: 'Écrasement Royal', kind: 'quake', cd: 18, first: 16, mult: 2.16 },
+  }),
+  boss_saltgardener: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_saltgardener', name: 'La Jardinière de Sel', color: 0xf0f0ff, hp: 1.2, atk: 1.4, armor: 0.9, res: 1.4, height: 1.1,
+    ult: { name: 'Cristallisation', kind: 'hex', cd: 20, first: 18, mult: 2.19 },
+  }),
+  boss_saltcolossus: mkBoss(BOSS_BASE.boneknight!, {
+    id: 'boss_saltcolossus', name: 'Le Colosse de Sel', color: 0xe8f4ff, hp: 1.5, atk: 1.1, armor: 1.45, res: 0.8, height: 1.4,
+    ult: { name: 'Effondrement', kind: 'quake', cd: 16, first: 14, mult: 2.23 },
+  }),
+  boss_reflection: mkBoss(BOSS_BASE.spectral!, {
+    id: 'boss_reflection', name: 'Le Reflet', color: 0xbfa6ff, hp: 1.4, atk: 1.25, armor: 1.0, res: 1.35, height: 1.25,
+    ult: { name: 'Miroir Brisé', kind: 'line', cd: 18, first: 16, mult: 2.26 },
+  }),
+  boss_antithesis: mkBoss(BOSS_BASE.queen!, {
+    id: 'boss_antithesis', name: 'L’Antithèse', color: 0x8a4dff, hp: 1.45, atk: 1.25, armor: 1.1, res: 1.25, height: 1.3,
+    ult: { name: 'Inversion', kind: 'summon', cd: 20, first: 18, mult: 2.29 },
+  }),
+  boss_summit: mkBoss(BOSS_BASE.warden!, {
+    id: 'boss_summit', name: 'Le Gardien du Sommet', color: 0xffd36a, hp: 1.5, atk: 1.3, armor: 1.35, res: 1.1, height: 1.3,
+    ult: { name: 'Jugement du Sommet', kind: 'nova', cd: 16, first: 14, mult: 2.33 },
+  }),
+  boss_eye: mkBoss(BOSS_BASE.spectral!, {
+    id: 'boss_eye', name: 'L’Œil de la Tour', color: 0xff3bd0, hp: 1.6, atk: 1.35, armor: 1.1, res: 1.5, height: 1.5,
+    ult: { name: 'Regard de l’Infini', kind: 'rain', cd: 18, first: 16, mult: 2.37 },
+  }),
+};
+
+const chapter_bosses: string[][] = [
+  ['warden', 'queen'],
+  ['boss_ashknight', 'boss_redwidow'],
+  ['boss_drownmonk', 'boss_devourer'],
+  ['boss_glassarcher', 'boss_prism'],
+  ['boss_mutechoir', 'boss_marshmother'],
+  ['boss_soulsmith', 'boss_ember'],
+  ['boss_cinderking', 'boss_royalhand'],
+  ['boss_saltgardener', 'boss_saltcolossus'],
+  ['boss_reflection', 'boss_antithesis'],
+  ['boss_summit', 'boss_eye'],
+];
+
+/** Viviers d’ennemis ordinaires, un par chapitre : le bestiaire s’ouvre avec la profondeur. */
+const ENEMY_POOL: UnitDef[][] = [
+  [ENEMIES.ghoul, ENEMIES.skeleton],
+  [ENEMIES.skeleton, ENEMIES.ghoul, ENEMIES.warden],
+  [ENEMIES.drowned, ENEMIES.ghoul, ENEMIES.witch],
+  [ENEMIES.skeleton, ENEMIES.witch, ENEMIES.spectral],
+  [ENEMIES.drowned, ENEMIES.witch, ENEMIES.spectral],
+  [ENEMIES.warden, ENEMIES.skeleton, ENEMIES.witch],
+  [ENEMIES.spectral, ENEMIES.drowned, ENEMIES.warden],
+  [ENEMIES.witch, ENEMIES.spectral, ENEMIES.ghoul],
+  [ENEMIES.skeleton, ENEMIES.spectral, ENEMIES.drowned, ENEMIES.witch],
+  [ENEMIES.warden, ENEMIES.witch, ENEMIES.spectral, ENEMIES.drowned],
+];
+
+
+/** Chapitre d’un niveau (1-3 → 1). */
+export const chapterOf = (id: string): number => Number(id.split('-')[0]) || 1;
+
+/** Nombre total de niveaux de campagne. */
+export const CAMPAIGN_LENGTH = CHAPTERS.length * 5;
+
+export const STAGES: StageDef[] = [
+  ...((): StageDef[] => {
+    const out: StageDef[] = [];
+    let prev: string | undefined;
+    CHAPTERS.forEach((ch, ci) => {
+      for (let k = 0; k < ch.stages.length; k++) {
+        const id = `${ch.id}-${k + 1}`;
+        const isBoss = k === 2 || k === 4;
+        const bossId = chapter_bosses[ci][k === 2 ? 0 : 1]!;
+        const boss = BOSSES[bossId]!;
+        const pool = ENEMY_POOL[Math.min(ENEMY_POOL.length - 1, ci)];
+        const enemies: StageDef["enemies"] = [];
+        const count = Math.min(5, 3 + (k === 4 ? 1 : 0));
+        const slots = [[1255,725],[1285,875],[1555,715],[1585,885],[1725,800]] as const;
+        for (let i = 0; i < count; i++) {
+          const [x, y] = slots[i]!;
+          const def = pool[(ci + k * 2 + i) % pool.length]!;
+          enemies.push({ def, x, y });
+        }
+        // Deux boss par chapitre : l'un à l'étage 3, l'autre à l'étage 5.
+        if (isBoss) enemies.push({ def: boss, x: 1420, y: 800, boss: true });
+        else if (boss) { /* pas de boss sur les autres étages */ }
+        // Puissance conseillée : mesurée par simulation sur une équipe de départ au
+        // niveau attendu du chapitre (8, 12, 17… 50). Ce sont de vrais chiffres.
+        const power = Math.round([20_000, 26_000, 32_000, 41_000, 48_000, 61_000, 67_000, 78_000, 95_000, 126_000][ci]! * (1 + k * 0.02));
+        out.push({
+          id,
+          tier: ci * 5 + [0, 0.6, 1.4, 2.2, 3.2][k]!,
+          name: ch.stages[k]!,
+          scene: ch.scenes[k]!,
+          requires: prev,
+          tip: isBoss
+            ? `Son ultime, <b>${boss.bossUlt!.name}</b>, est télégraphié : lis le texte et bouge, ou étourdis-le pour l’annuler.`
+            : `Regarde les classes ennemies : la Lumière bat l’Obscur, l’Obscur bat la Nature, la Nature bat la Technique, la Technique bat le Combat, le Combat bat la Lumière.`,
+          description: `${ch.subtitle} ${STAGE_FLAVOUR[k]}${isBoss ? ` ${boss.name} barre la route.` : ''}`,
+          power,
+          energy: 6 + Math.min(6, ci),
+          rewards: {
+            gold: Math.round((2400 + ci * 2600) * (1 + k * 0.22)),
+            gems: Math.round((90 + ci * 60) * (1 + k * 0.3)),
+            xp: Math.round((180 + ci * 120) * (1 + k * 0.25)),
+          },
+          enemies,
+        });
+        prev = id;
+      }
+    });
+    return out;
+  })(),
+];
 
 /* ===================================================================== */
 /*  Amélioration des compétences : tous les 10 niveaux, sans plafond      */
@@ -739,8 +846,6 @@ export const skillTiers = (level: number): number => Math.max(0, Math.floor(leve
 export const skillMult = (tier: number): number => 1 + 0.25 * tier;
 
 /** Niveau auquel tombe le prochain palier. */
-export const nextTierLevel = (level: number): number => (skillTiers(level) + 1) * SKILL_TIER_LEVELS;
-
 /** Progression (0…1) vers le prochain palier. */
 export function tierProgress(level: number): number {
   const tier = skillTiers(level);
@@ -763,7 +868,6 @@ export function levelUpCost(level: number, rarity: Rarity): number {
 export const levelStatMult = (level: number): number => 1 + 0.07 * (level - 1);
 
 /** Niveau maximum d'un héros : aucun. */
-export const MAX_HERO_LEVEL = Number.POSITIVE_INFINITY;
 
 /** Bonus de dégâts de compétence affiché en pourcentage. */
 export const tierBonusPct = (tier: number): number => Math.round((skillMult(tier) - 1) * 100);

@@ -16,7 +16,8 @@ import { audio } from './audio/AudioEngine';
 import { applyCursors, CURSORS } from './ui/cursors';
 import { BattleScene } from './battle/BattleScene';
 import { BattleHud } from './ui/BattleHud';
-import { STAGES, type StageDef } from './data/heroes';
+import { HEROES, STAGES, type StageDef, type TeamMember } from './data/heroes';
+import { trainingStage } from './data/training';
 import { isTowerStage, towerFloorOf, towerStage } from './data/tower';
 import { hookFullscreen, inIframe } from './ui/fullscreen';
 import { installAdmin } from './ui/admin';
@@ -194,13 +195,14 @@ async function boot(): Promise<void> {
   const transition = createTransition();
   let currentStage: StageDef | null = null;
 
-  const launch = (stage: StageDef) => {
+  const launch = (stage: StageDef, team = store.team(), training = false) => {
     currentStage = stage;
-    battle.start(stage, store.team());
+    battle.start(stage, team, { training });
     game.adaptive = true; // la résolution baisse d'elle-même si la machine peine (> 22 ms/image en moyenne)
     battle.speed = store.settings.battleSpeed;
     battle.setAuto(store.settings.battleAuto);
     hud.show(stage, battle.sim!, store.settings.battleAuto, store.settings.battleSpeed);
+    if (training) hud.trainingBar(() => launch(stage, team, true));
   };
 
   const enterTower = (floor: number) => {
@@ -211,6 +213,25 @@ async function boot(): Promise<void> {
       game.root.visible = false;
       audio.setMode('battle');
       launch(stage);
+    });
+  };
+
+  const enterTraining = (cfg: { heroId: string; armor: number; res: number }) => {
+    const member: TeamMember | undefined = store.team().find((m) => m.def.id === cfg.heroId)
+      ?? (store.owns(cfg.heroId)
+        ? (() => {
+            const def = HEROES.find((h) => h.id === cfg.heroId);
+            return def ? { def, stars: store.starsOf(def), level: store.levelOf(def), gear: store.gearOf(def.id) } : undefined;
+          })()
+        : undefined);
+    if (!member) return;
+    const stage = trainingStage(cfg.armor, cfg.res, member.def.name);
+    audio.whoosh();
+    transition(() => {
+      ui.closeModal(true);
+      game.root.visible = false;
+      audio.setMode('battle');
+      launch(stage, [member], true);
     });
   };
 
@@ -242,9 +263,13 @@ async function boot(): Promise<void> {
 
   ui.on('startStage', enterBattle);
   ui.on('startTower', enterTower);
+  ui.on('startTraining', enterTraining);
   battle.on('cutin', (u) => hud.cutin(u));
   battle.on('banner', ({ text, kind }) => hud.banner(text, kind));
   battle.on('bossTitle', ({ name, title }) => hud.bossTitle(name, title));
+  battle.on('bosscast', ({ name, kind, color }) => hud.bossCast(name, kind, color));
+  battle.on('bossimpact', ({ kind }) => hud.bossImpact(kind));
+  battle.on('trainingTick', ({ total, dps, time }) => hud.tickTraining(total, dps, time));
   battle.on('bond', ({ name, line }) => hud.bond(name, line));
   battle.on('finished', (r) => {
     if (!currentStage) return;

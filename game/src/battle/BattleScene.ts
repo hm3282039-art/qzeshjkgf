@@ -39,6 +39,11 @@ type BattleEvents = {
   bossTitle: { name: string; title: string };
   /** Lien d'équipe actif au début du combat. */
   bond: { name: string; line: string };
+  /** Un boss prépare son ultime : l'interface affiche le nom et la menace. */
+  bosscast: { name: string; kind: string; color: number };
+  bossimpact: { name: string; kind: string };
+  /** Entraînement : dégâts cumulés et DPS, envoyés à l'interface. */
+  trainingTick: { total: number; dps: number; time: number };
   finished: BattleResult;
 };
 
@@ -239,6 +244,9 @@ export class BattleScene extends Emitter<BattleEvents> {
   private spot: Unit | null = null;
   /** Chapitre II : les ennemis portent une aura de braises (ambiance distincte). */
   private chapter2 = false;
+  /** Entraînement : mannequin invincible, compteur de dégâts. */
+  private training = false;
+  private trainingAcc = 0;
 
   constructor(private readonly game: Game, private readonly tex: GameTextures, readonly fx: FxTextures) {
     super();
@@ -803,14 +811,17 @@ export class BattleScene extends Emitter<BattleEvents> {
 
   /* =========================== Cycle de vie =========================== */
 
-  start(stage: StageDef, team: readonly TeamMember[]): void {
+  start(stage: StageDef, team: readonly TeamMember[], opts: { training?: boolean } = {}): void {
     this.clear();
-    this.chapter2 = stage.id.startsWith('2-');
+    // Braises sur les ennemis dès le chapitre 2 : le monde brûle de plus en plus.
+    this.chapter2 = !stage.id.startsWith('1-');
     const boss = stage.enemies.find((e) => e.boss);
     this.bossName = boss ? boss.def.name : '';
     this.stageName = stage.name;
     this.buildDecor(stage.scene);
-    const sim = new BattleSim(stage, team);
+    const sim = new BattleSim(stage, team, Math.random, { training: opts.training });
+    this.training = !!opts.training;
+    this.trainingAcc = 0;
     this.sim = sim;
     this.bossUid = sim.boss?.uid ?? -1;
     this.bindSim(sim);
@@ -1317,6 +1328,51 @@ export class BattleScene extends Emitter<BattleEvents> {
     const uv = this.view(e.u);
     const pan = audio.panX(e.u?.x ?? 960);
     switch (e.type) {
+      case 'boss_charge': {
+        if (!e.u) return;
+        const c = uv!.chest;
+        // Le boss aspire la lumière : anneau qui se referme, particules happées, secousse.
+        this.cam.shake(0.5);
+        this.cam.punch(0.02);
+        audio.play('boss_windup', { vol: 1 });
+        audio.play('riser', { vol: 0.5, rate: 0.7 });
+        this.pulse(e.u.x, e.u.y, e.u.def.color, 90, 520, 1.15);
+        this.suck(c.x, c.y, 150, e.u.def.color, 26);
+        for (let i = 0; i < 3; i++) {
+          this.fxSprite(fx.ring, e.u.x, e.u.y, {
+            tint: e.u.def.color, life: 1.1 + i * 0.25, scale: [2.4, 0.25], alpha: [0.35 + i * 0.15, 0], flatten: 0.3,
+          });
+        }
+        this.emit('bosscast', { name: e.label ?? 'Ultime', kind: e.kind ?? 'nova', color: e.u.def.color });
+        break;
+      }
+      case 'boss_impact': {
+        if (!e.u) return;
+        if (e.kind === 'cancel') {
+          this.emit('banner', { text: 'Ultime interrompu !', kind: 'info' });
+          audio.play('block');
+          break;
+        }
+        audio.play('boss_slam', { vol: 1 });
+        this.cam.shake(0.85);
+        this.cam.punch(0.035);
+        this.hitstop(0.06);
+        this.rgbSplit(10, 0.2);
+        const x = e.x ?? e.u.x;
+        const y = e.y ?? e.u.y;
+        if (e.kind === 'rain') {
+          for (let i = 0; i < 10; i++) {
+            const px = 200 + (i / 9) * 1500;
+            this.lightning(px, y - 420, px + rand(-40, 40), y, e.u.def.color, 2, 0.3);
+          }
+        }
+        this.fxSprite(fx.ring, x, y, { tint: e.u.def.color, life: 0.7, scale: [0.4, 5], alpha: [0.9, 0], flatten: 0.45 });
+        this.fxSprite(fx.ring, x, y, { tint: 0xffffff, life: 0.45, scale: [0.2, 2.6], alpha: [0.8, 0], flatten: 0.45 });
+        this.smoke.burst(24, x, y, 0x2a1a2a);
+        this.debris.burst(18, x, y);
+        this.emit('bossimpact', { name: e.label ?? '', kind: e.kind ?? 'nova' });
+        break;
+      }
       case 'kael_shield': {
         if (!e.u) return;
         audio.play('shield_up', { pan });
@@ -2588,6 +2644,14 @@ export class BattleScene extends Emitter<BattleEvents> {
     if (this.phase === 'idle') return;
     const realDt = Math.min(rawDt, 1 / 20);
     this.time += realDt;
+    if (this.training && this.sim) {
+      this.trainingAcc += realDt;
+      if (this.trainingAcc >= 0.2) {
+        this.trainingAcc = 0;
+        const t = this.sim.time;
+        this.emit('trainingTick', { total: this.sim.heroDamage, dps: t > 0.6 ? this.sim.heroDamage / t : 0, time: t });
+      }
+    }
     const w = this.game.app.screen.width, h = this.game.app.screen.height;
 
     // Décor (toujours animé, même en pause, pour que l'écran reste vivant)

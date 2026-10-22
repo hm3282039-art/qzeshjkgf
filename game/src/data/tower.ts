@@ -16,10 +16,15 @@ import { ENEMIES, type SceneId, type StageDef, type UnitDef } from './heroes';
  */
 
 /** Palier de difficulté de l'étage. 0,4 = entrée très accessible ; +0,22 par étage. */
-export const towerTier = (floor: number): number => 0.5 + (floor - 1) * 0.58;
+/**
+ * Palier de la Tour. La courbe de campagne compte désormais 10 chapitres ;
+ * l'échelle a donc été convertie pour conserver exactement la même difficulté
+ * par étage (environ +5 % de PV et +4 % d'ATQ à chaque étage).
+ */
+export const towerTier = (floor: number): number => 1.35 + (floor - 1) * 1.55;
 
 /** Puissance conseillée : sert d'indication dans l'interface. */
-export const towerPower = (floor: number): number => Math.round(13800 * Math.pow(1.075, floor - 1));
+export const towerPower = (floor: number): number => Math.round(19000 * (1 + 0.075 * (floor - 1)));
 
 /** Récompenses d'un étage (valeurs « première victoire »). */
 export const towerRewards = (floor: number): { gold: number; gems: number; xp: number } => {

@@ -65,6 +65,8 @@ export class Unit {
   untargetable = false;
   enraged = false;
   lifeT = Infinity;
+  /** Compte à rebours de l'ultime de boss (Infinity pour tout le reste). */
+  ultT = Infinity;
   ultReadyNotified = false;
   readonly dots: Dot[] = [];
   leap: Leap | null = null;
@@ -105,6 +107,7 @@ export class Unit {
     this.laneOffset = (rnd() - 0.5) * 120;
     this.atkT = 0.4 + rnd() * 0.5;
     this.skillT = def.skillFirst ?? def.skillCd ?? Infinity;
+    if (def.bossUlt) this.ultT = def.bossUlt.first;
     this.facing = side === 'hero' ? 1 : -1;
   }
 
@@ -167,6 +170,7 @@ export type FxType =
   | 'mira_trap' | 'mira_trap_clamp' | 'mira_salvo' | 'mira_shot' | 'mira_reload'
   | 'corvin_slam' | 'corvin_charge' | 'corvin_judgement'
   | 'elara_choir' | 'elara_wave'
+  | 'boss_charge' | 'boss_impact'
   | 'stun' | 'freeze' | 'dot_tick' | 'expire';
 
 export interface FxEvent {
@@ -177,6 +181,10 @@ export interface FxEvent {
   x?: number; y?: number;
   x2?: number; y2?: number;
   dur?: number;
+  /** Libellé d'ultime de boss (nom + phrase de mise en scène). */
+  label?: string;
+  /** Variante d'effet (nova, ligne, séisme…). */
+  kind?: string;
 }
 
 export type SimEvents = {
@@ -208,8 +216,19 @@ export class BattleSim extends Emitter<SimEvents> {
   private acc = 0;
   private static readonly STEP = 1 / 60;
 
-  constructor(readonly stage: StageDef, readonly team: readonly TeamMember[], readonly random: () => number = Math.random) {
+  /** Mode entraînement : mannequin invincible, pas de limite de temps, dégâts comptés. */
+  training = false;
+  /** Total des dégâts infligés par l'équipe (compteur de l'entraînement). */
+  heroDamage = 0;
+
+  constructor(
+    readonly stage: StageDef,
+    readonly team: readonly TeamMember[],
+    readonly random: () => number = Math.random,
+    opts: { training?: boolean } = {},
+  ) {
     super();
+    this.training = !!opts.training;
   }
 
   /** Place les combattants (à appeler après avoir branché les écouteurs). */
@@ -341,10 +360,17 @@ export class BattleSim extends Emitter<SimEvents> {
     if (u.lock > 0) u.lock -= dt;
     u.atkT -= dt * (u.slowT > 0 ? 0.65 : 1) * (u.hasteT > 0 ? HASTE_ATK : 1);
     u.skillT -= dt;
+    if (u.ultT !== Infinity) u.ultT -= dt;
 
     // Héros : l'énergie remonte doucement
     if (u.hero) {
       this.gainEnergy(u, dt * 1.2);
+    }
+    // Régénération d'équipement (pièces « Sève vive » / « Éternité »).
+    const regen = u.opts.gear?.regen ?? 0;
+    if (regen > 0 && u.hp < u.maxHp) {
+      u.hp = Math.min(u.maxHp, u.hp + u.maxHp * regen * dt);
+      u.healed += u.maxHp * regen * dt;
     }
 
     for (let i = u.dots.length - 1; i >= 0; i--) {
@@ -378,7 +404,7 @@ export class BattleSim extends Emitter<SimEvents> {
 
   private gainEnergy(u: Unit, amount: number): void {
     if (!u.hero || !u.alive) return;
-    u.energy = Math.min(100, u.energy + amount);
+    u.energy = Math.min(100, u.energy + amount * (u.opts.gear?.ultRate ?? 1));
     if (u.energy >= 100 && !u.ultReadyNotified) {
       u.ultReadyNotified = true;
       this.emit('ultReady', u);
@@ -403,12 +429,19 @@ export class BattleSim extends Emitter<SimEvents> {
   }
 
   private think(u: Unit, dt: number): void {
+    if (this.training && u.side === 'enemy') return;
     if (u.stun > 0 || u.leap) return;
     const target = (u.target = this.pickTarget(u));
     if (!target) return;
     if (u.lock > 0) return;
 
     u.facing = target.x >= u.x ? 1 : -1;
+
+    // Ultime de boss : prioritaire, télégraphié, puis relancé après recharge.
+    if (u.def.bossUlt && u.ultT <= 0) {
+      this.castBossUlt(u);
+      return;
+    }
 
     // Compétence (lancée automatiquement dès qu'elle est prête)
     if (u.skillT <= 0 && this.trySkill(u, target)) {
@@ -520,7 +553,8 @@ export class BattleSim extends Emitter<SimEvents> {
 
   /** Dégâts d'une compétence : applique le bonus de palier du héros. */
   private hit(u: Unit, t: Unit, mult: number, kind: DamageKind, canCrit = true): number {
-    return this.damage(u, t, mult * u.skillPower, kind, canCrit);
+    const skill = 1 + (u.opts.gear?.skillBonus ?? 0);
+    return this.damage(u, t, mult * u.skillPower * skill, kind, canCrit);
   }
 
   damage(src: Unit, tgt: Unit, mult: number, kind: DamageKind, canCrit = true): number {
@@ -533,15 +567,38 @@ export class BattleSim extends Emitter<SimEvents> {
     const mitigation = kind === 'true' ? 1 : 100 / (100 + def);
     // Avantage de classe : Lumière → Obscur → Nature → Technique → Combat → Lumière.
     const cm = classMultiplier(src.cls, tgt.cls);
-    let amount = Math.max(1, Math.round(src.atk * mult * cm * (crit ? 1.75 : 1) * variance * mitigation * (1 - tgt.dmgRed)));
+    // Effets uniques d'équipement (portés par les pièces mythiques et reliques).
+    const sg = src.opts.gear;
+    const tg = tgt.opts.gear;
+    let mult2 = mult * (1 + (sg?.dmgBonus ?? 0));
+    if (sg?.execute && tgt.ratio < 0.3) mult2 *= 1 + sg.execute;
+    if (sg?.opening && this.time < 8) mult2 *= 1 + sg.opening;
+    const reduction = Math.min(0.8, tgt.dmgRed + (tg?.dmgRed ?? 0));
+    let amount = Math.max(1, Math.round(src.atk * mult2 * cm * (crit ? 1.75 : 1) * variance * mitigation * (1 - reduction)));
     const absorbed = Math.min(tgt.shield, amount);
     tgt.shield -= absorbed;
     const hpLoss = amount - absorbed;
-    tgt.hp = Math.max(0, tgt.hp - hpLoss);
+    tgt.hp = Math.max(this.training && tgt.side === 'enemy' ? tgt.maxHp : 0, tgt.hp - hpLoss);
+    if (src.side === 'hero' && src.hero) this.heroDamage += amount;
     src.dealt += amount;
     tgt.taken += amount;
     this.gainEnergy(tgt, (hpLoss / tgt.maxHp) * 30);
     this.emit('damage', { target: tgt, source: src, amount, crit, absorbed, kind, cls: cm });
+
+    // Vol de vie : l'attaquant récupère une part des dégâts réels.
+    const steal = sg?.lifesteal ?? 0;
+    if (steal > 0 && hpLoss > 0 && src.alive && !this.training) {
+      src.hp = Math.min(src.maxHp, src.hp + hpLoss * steal);
+      src.healed += hpLoss * steal;
+    }
+    // Épines : une part revient à l'attaquant, sans critique ni mitigation.
+    const thorn = tg?.thorns ?? 0;
+    if (thorn > 0 && hpLoss > 0 && src.alive && src !== tgt) {
+      const back = Math.max(1, Math.round(hpLoss * thorn));
+      src.hp = Math.max(0, src.hp - back);
+      this.emit('damage', { target: src, source: tgt, amount: back, crit: false, absorbed: 0, kind: 'true', cls: 1 });
+      if (!src.alive) this.kill(src);
+    }
 
     if (tgt.isBoss && !tgt.enraged && tgt.ratio < 0.5 && tgt.alive) {
       tgt.enraged = true;
@@ -602,7 +659,7 @@ export class BattleSim extends Emitter<SimEvents> {
   }
 
   private checkEnd(): void {
-    if (this.over) return;
+    if (this.over || this.training) return;
     const enemiesAlive = this.units.some((u) => u.alive && u.side === 'enemy');
     const heroesAlive = this.units.some((u) => u.alive && u.hero);
     let winner: Side | null = null;
@@ -616,10 +673,90 @@ export class BattleSim extends Emitter<SimEvents> {
     }
   }
 
+  /* ======================= Ultimes de boss ======================= */
+
+  /**
+   * Un boss prépare son ultime : 1,15 s de montée télégraphiée (nom + phrase),
+   * puis l'effet tombe. Étourdir le boss pendant la montée l'annule — c'est la
+   * contre-attaque que le joueur doit apprendre.
+   */
+  private castBossUlt(u: Unit): void {
+    const ult = u.def.bossUlt;
+    if (!ult) return;
+    u.ultT = ult.cd;
+    u.lock = 1.25;
+    this.emit('cast', { u, ability: 'ultimate' });
+    this.emit('fx', { type: 'boss_charge', u, label: ult.name, kind: ult.kind });
+    this.after(1.15, () => {
+      if (!u.alive || this.over || u.stun > 0) {
+        this.emit('fx', { type: 'boss_impact', u, kind: 'cancel', label: ult.name });
+        return;
+      }
+      this.resolveBossUlt(u, ult.kind, ult.mult);
+      this.emit('fx', { type: 'boss_impact', u, x: u.x, y: u.y, kind: ult.kind, label: ult.name });
+    });
+  }
+
+  private resolveBossUlt(u: Unit, kind: string, mult: number): void {
+    const heroes = this.foes(u);
+    if (!heroes.length) return;
+    const hitAll = (m: number, stun = 0): void => {
+      for (const h of heroes) {
+        if (!h.alive) continue;
+        this.hit(u, h, m, 'magic');
+        if (stun > 0) h.stun = Math.max(h.stun, stun);
+      }
+    };
+    switch (kind) {
+      case 'nova': {
+        const near = heroes.filter((h) => this.dist(u, h) < 380);
+        if (!near.length) { u.ultT = 4; return; }
+        for (const h of near) this.hit(u, h, mult, 'magic');
+        return;
+      }
+      case 'line': {
+        const lane = heroes.filter((h) => Math.abs(h.y - u.y) < 150 && h.x < u.x);
+        if (!lane.length) { u.ultT = 4; return; }
+        for (const h of lane) this.hit(u, h, mult * 1.15, 'phys');
+        return;
+      }
+      case 'quake':
+        hitAll(mult, 1.15);
+        return;
+      case 'hex': {
+        const sorted = [...heroes].sort((a, b) => this.dist(u, a) - this.dist(u, b)).slice(0, 3);
+        for (const h of sorted) {
+          this.hit(u, h, mult * 0.7, 'magic');
+          h.dots.push({ src: u, mult: 0.35, every: 0.8, timer: 0.8, left: 4, kind: 'dot' });
+          h.dmgRed = Math.min(0.3, h.dmgRed + 0.12);
+          h.dmgRedT = Math.max(h.dmgRedT, 6);
+        }
+        return;
+      }
+      case 'rain':
+        hitAll(mult * 0.85);
+        return;
+      case 'summon': {
+        const minions = Math.min(2, 5 - this.units.filter((x) => x.alive && x.side === 'enemy').length);
+        const base = u.def.height > 280 ? ENEMIES.spectral : ENEMIES.ghoul;
+        for (let i = 0; i < Math.max(1, minions); i++) {
+          const x = Math.max(FIELD.minX, Math.min(FIELD.maxX, u.x - 120 - i * 90));
+          const y = clampY(u.y + (i ? 70 : -70));
+          const m = this.add(new Unit(base, 'enemy', x, y, { summon: true, rnd: this.random, scale: { hp: 1.4, atk: 1.2 } }));
+          m.lifeT = 18;
+          this.emit('fx', { type: 'morwen_summon', u: m, x, y });
+        }
+        return;
+      }
+      default:
+        hitAll(mult * 0.8);
+    }
+  }
+
   /* ======================= Compétences ======================= */
 
   private trySkill(u: Unit, target: Unit): boolean {
-    switch (u.def.id) {
+    switch (u.def.skillAs ?? u.def.id) {
       case 'kael': return this.kaelSkill(u);
       case 'lyra': return this.lyraSkill(u);
       case 'morwen': return this.morwenSkill(u);
@@ -1159,7 +1296,7 @@ export class BattleSim extends Emitter<SimEvents> {
     u.energy = 0;
     u.ultReadyNotified = false;
     this.emit('cast', { u, ability: 'ultimate' });
-    switch (u.def.id) {
+    switch (u.def.skillAs ?? u.def.id) {
       case 'kael': this.kaelUlt(u); break;
       case 'lyra': this.lyraUlt(u); break;
       case 'morwen': this.morwenUlt(u); break;

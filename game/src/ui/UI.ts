@@ -1,8 +1,8 @@
 import { TALKERS } from '../data/npcLines';
 import { ART, GEAR_ART, PORTRAITS, SCENE_BG } from '../assets';
 import { BUILDINGS, type BuildingDef } from '../data/buildings';
-import { GEAR, SLOT_LIST, SUB_LABEL, mainLabel, type Slot } from '../data/items';
-import { BONDS, CLASSES, CLASS_LIST, classBeatenBy, classCounts, classMultiplier, CLASS_SYNERGY, HEROES, heroPower, levelStatMult, levelUpCost, skillTiers, starMult, STAGE_PROFILE_TEXT, STAGES, stageProfile, teamPower, tierBonusPct, type HeroClass, type HeroDef, type StageDef, type UnitDef } from '../data/heroes';
+import { SLOT_LIST, SUB_LABEL, itemCss, itemRarity, mainLabel, type Slot } from '../data/items';
+import { BONDS, CAMPAIGN_LENGTH, CHAPTERS, CLASSES, CLASS_LIST, classBeatenBy, classCounts, classMultiplier, CLASS_SYNERGY, HEROES, heroPower, levelStatMult, levelUpCost, skillTiers, starMult, STAGE_PROFILE_TEXT, STAGES, stageProfile, teamPower, tierBonusPct, type HeroClass, type HeroDef, type StageDef, type UnitDef } from '../data/heroes';
 import type { LabelPosition } from '../scene/HubScene';
 import { store, type PlayerState, type Quality } from '../state/store';
 import { audio } from '../audio/AudioEngine';
@@ -14,6 +14,9 @@ import { starsHTML } from './stars';
 import { canFullscreen, inIframe, isFullscreen, toggleFullscreen } from './fullscreen';
 import { collectionText, SummonScreen } from './Summon';
 import { towerRewards, towerStage, towerTier } from '../data/tower';
+import { DUMMY_PRESETS, trainingStage } from '../data/training';
+import { FRAMES, TITLES, frameById, type ProfileStats } from '../data/profile';
+import { RANK_POPULATION, leaderboard, rankScore, rankingDay, seasonOf } from '../data/bots';
 
 export type UIEvents = {
   labelHover: { id: string; hovered: boolean };
@@ -21,6 +24,7 @@ export type UIEvents = {
   recenter: void;
   startStage: string;
   startTower: number;
+  startTraining: { heroId: string; armor: number; res: number };
 };
 
 /** Un niveau est jouable si le précédent a été gagné. */
@@ -52,6 +56,7 @@ const RIGHT_MENU: MenuEntry[] = [
 const NAV: Array<MenuEntry & { main?: boolean }> = [
   { id: 'campaign', label: 'Campagne', icon: 'map', description: '' },
   { id: 'tower', label: 'Tour', icon: 'tower', description: 'La Tour de l’Infini : des étages sans fin, sans énergie, et un record à battre.' },
+  { id: 'training', label: 'Arène', icon: 'swords', description: 'Entraînement : un héros contre un mannequin invincible, pour comprendre chaque capacité.' },
   { id: 'heroes', label: 'Héros', icon: 'helmet', description: 'Gère ta collection de héros, leur niveau et leur équipement.' },
   { id: 'city', label: 'Ville', icon: 'castle', main: true, description: '' },
   { id: 'bag', label: 'Sac', icon: 'bag', badge: true, description: 'Ton inventaire : objets, fragments et matériaux.' },
@@ -223,6 +228,13 @@ export class UI extends Emitter<UIEvents> {
   }
 
   private renderPlayer(p: PlayerState): void {
+    // Le cadre choisi dans le profil doit se voir partout, pas seulement dans la fenêtre.
+    const frameEl = this.root.querySelector<HTMLElement>('.hud-top .avatar-frame');
+    if (frameEl) {
+      const f = frameById(p.frame);
+      frameEl.style.setProperty('--fr', f.css);
+      frameEl.style.setProperty('--fg', f.glow);
+    }
     const set = (key: string, v: string) => { const el = this.root.querySelector<HTMLElement>(`[data-bind="${key}"]`); if (el) el.textContent = v; };
     set('level', String(p.level));
     set('name', p.name);
@@ -259,12 +271,14 @@ export class UI extends Emitter<UIEvents> {
       if (action === 'settings') this.openSettings();
       else if (action === 'battle') this.openCampaign();
       else if (action.startsWith('buy-')) this.toast('La boutique ouvrira bientôt');
-      else if (action === 'profile') this.openInfo('Profil de l’Invocateur', 'helmet', 'Ton héros', 'Ici tu pourras changer ton nom, ton avatar et voir tes statistiques.');
+      else if (action === 'profile') this.openProfile();
       else if (action === 'mail') this.openInfo('Courrier', 'mail', '2 nouveaux messages', 'Les récompenses et messages des développeurs arriveront ici.');
       else if (action === 'chat') this.toast('La discussion arrivera bientôt');
       return;
     }
     if (menu === 'summon') { this.openSummon(); return; }
+    if (menu === 'ranking') { this.openRanking(); return; }
+    if (menu === 'profile') { this.openProfile(); return; }
     if (menu) {
       const m = [...LEFT_MENU, ...RIGHT_MENU].find((x) => x.id === menu);
       if (m) this.openInfo(m.label, m.icon, 'Fonctionnalité', m.description);
@@ -275,6 +289,8 @@ export class UI extends Emitter<UIEvents> {
       if (nav === 'campaign') { this.openCampaign(); return; }
       if (nav === 'heroes') { this.openHeroes(); return; }
       if (nav === 'tower') { this.openTower(); return; }
+      if (nav === 'training') { this.openTraining(); return; }
+      if (nav === 'profile') { this.openProfile(); return; }
       const n = NAV.find((x) => x.id === nav);
       if (n) this.openInfo(n.label, n.icon, 'Menu', n.description);
     }
@@ -568,14 +584,307 @@ export class UI extends Emitter<UIEvents> {
     });
   }
 
+  /* ====================== Profil ====================== */
+
+  /** Statistiques résumées du joueur, utilisées par le profil et les cadres. */
+  private profileStats(): ProfileStats {
+    const p = store.player;
+    return {
+      level: p.level,
+      power: p.power,
+      towerBest: store.towerBest,
+      stagesDone: Object.values(store.campaign).filter((x) => x > 0).length,
+      collection: HEROES.filter((h) => store.owns(h.id)).length,
+      summons: store.summons,
+      gems: p.gems,
+    };
+  }
+
+  /** Cadre du joueur, appliqué au bouton de profil du bandeau. */
+  applyFrame(): void {
+    const btn = this.root.querySelector<HTMLElement>('.hud-top .avatar-frame');
+    if (!btn) return;
+    const f = frameById(store.player.frame);
+    btn.style.setProperty('--fr', f.css);
+    btn.style.setProperty('--fg', f.glow);
+  }
+
+  openProfile(): void {
+    const p = store.player;
+    const st = this.profileStats();
+    const team = store.team();
+    const avatar = team[0]?.def.id ?? 'kael';
+    const unlocked = FRAMES.filter((f) => f.test(st));
+    const titles = TITLES.filter((t) => t.test(st));
+    const frame = frameById(p.frame);
+    const title = titles.find((t) => t.id === p.title) ?? titles[0]!;
+
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('helmet')}</div>
+      <h2>Profil</h2>
+      <div class="subtitle">Ton nom, ton cadre, ta trace dans la Tour.</div>
+      <div class="pf">
+        <div class="pf-card">
+          <div class="pf-ava" style="--fr:${frame.css};--fg:${frame.glow}">
+            <img src="${PORTRAITS[avatar]}" alt=""/>
+            <span class="pf-lvl">${p.level}</span>
+          </div>
+          <div class="pf-id">
+            <label class="pf-name">Pseudo <input data-name maxlength="16" value="${p.name.replace(/"/g, '&quot;')}" spellcheck="false"/></label>
+            <div class="pf-title">${icon('medal')} ${title.name}</div>
+            <div class="pf-power">${icon('swords')} <b>${fmt(p.power)}</b> puissance</div>
+          </div>
+          <div class="pf-titles"></div>
+        </div>
+        <div class="pf-stats">
+          <div><small>Campagne</small><b>${st.stagesDone}/${CAMPAIGN_LENGTH}</b><em>niveaux</em></div>
+          <div><small>Tour</small><b>${st.towerBest || '—'}</b><em>record</em></div>
+          <div><small>Collection</small><b>${st.collection}/17</b><em>héros</em></div>
+          <div><small>Invocations</small><b>${st.summons}</b><em>au total</em></div>
+        </div>
+        <div class="cd-sec">Équipe <span class="pf-team-sub">${team.length}/5</span></div>
+        <div class="pf-team">${team.map(({ def: h }) => `<div class="pf-hero" style="--c:${h.css}"><img src="${PORTRAITS[h.id]}" alt=""/><span>${h.name.replace('Frère ', '')}</span><small>Niv. ${store.levelOf(h)}</small></div>`).join('')}</div>
+        <div class="cd-sec">Cadres <span class="pf-team-sub">${unlocked.length}/${FRAMES.length}</span></div>
+        <div class="pf-frames">${FRAMES.map((f) => {
+          const ok = f.test(st);
+          return `<button class="pf-frame${ok ? '' : ' locked'}${f.id === p.frame ? ' on' : ''}" data-frame="${f.id}" style="--fr:${f.css};--fg:${f.glow}" ${ok ? '' : 'disabled'}>
+            <span class="pff-ring"></span><b>${f.name}</b><small>${ok ? (f.id === p.frame ? 'Porté' : 'Débloqué') : f.req}</small></button>`;
+        }).join('')}</div>
+        <div class="cd-sec">Titres</div>
+        <div class="pf-titles-list">${TITLES.map((t) => {
+          const ok = t.test(st);
+          return `<button class="pf-tit${ok ? '' : ' locked'}${t.id === p.title ? ' on' : ''}" data-title="${t.id}" ${ok ? '' : 'disabled'}>${icon(ok ? 'medal' : 'lock')} <span>${ok ? t.name : t.req}</span></button>`;
+        }).join('')}</div>
+      </div>
+      <div class="btn-row"><button class="btn dark" data-open-rank>${icon('trophy')} Voir le classement</button><button class="btn" data-close-pf>${icon('back')} Fermer</button></div>`, '#d8b45aaa', 'xl');
+
+    const nameInput = modal.querySelector<HTMLInputElement>('[data-name]')!;
+    nameInput.addEventListener('input', () => {
+      const v = nameInput.value.trim().slice(0, 16) || 'Invocateur';
+      store.updatePlayer({ name: v });
+      this.renderPlayer(store.player);
+    });
+
+    modal.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const fr = t.closest<HTMLElement>('[data-frame]');
+      if (fr && !fr.hasAttribute('disabled')) {
+        store.setFrame(fr.dataset.frame!);
+        audio.click();
+        this.applyFrame();
+        this.openProfile();
+        return;
+      }
+      const ti = t.closest<HTMLElement>('[data-title]');
+      if (ti && !ti.hasAttribute('disabled')) {
+        store.setTitle(ti.dataset.title!);
+        audio.click();
+        this.openProfile();
+        return;
+      }
+      if (t.closest('[data-open-rank]')) { audio.click(); this.openRanking(); }
+      else if (t.closest('[data-close-pf]')) { audio.click(); this.closeModal(); }
+    });
+    this.applyFrame();
+  }
+
+  /* ====================== Classement ====================== */
+
+  /**
+   * Classement mondial : les bots ET le joueur dans la même liste.
+   * Le joueur est surligné, et sa ligne reste visible en bas quoi qu'il arrive.
+   */
+  openRanking(): void {
+    const p = store.player;
+    const team = store.team();
+    const avatar = team[0]?.def.id ?? 'kael';
+    const titleName = (TITLES.find((t) => t.id === p.title) ?? TITLES[0]!).name;
+    const rows = leaderboard({ name: p.name, power: p.power, floor: store.towerBest, level: p.level, avatar, frame: p.frame, title: titleName });
+    const me = rows.find((r) => r.isPlayer)!;
+    const day = rankingDay();
+    const { season, dayInSeason } = seasonOf(day);
+    const frameCss = (id: string): string => frameById(id).css;
+    const rowHTML = (r: typeof rows[number]): string => `
+      <div class="rk-row${r.isPlayer ? ' me' : ''}${r.rank <= 3 ? ' top' + r.rank : ''}" data-row="${r.rank}">
+        <div class="rk-pos">${r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : r.rank}</div>
+        <div class="rk-ava" style="--fr:${frameCss(r.frame)}"><img src="${PORTRAITS[r.avatar]}" alt=""/></div>
+        <div class="rk-id">
+          <b>${r.name}${r.isPlayer ? ' <em>toi</em>' : ''}</b>
+          <span>${r.title}</span>
+          ${r.event && !r.isPlayer ? `<i>${r.event}</i>` : ''}
+        </div>
+        <div class="rk-num"><small>Niv.</small><b>${r.level}</b></div>
+        <div class="rk-num"><small>Tour</small><b>${r.floor || '—'}</b></div>
+        <div class="rk-pow"><small>Puissance</small><b>${fmt(r.power)}</b>${r.trend > 0 ? `<i>+${fmt(r.trend)}</i>` : ''}</div>
+      </div>`;
+
+    const podium = rows.slice(0, 3).map((r, i) => `
+      <div class="rk-pod p${i + 1}" style="--c:${frameById(r.frame).glow}">
+        <div class="rk-ava big" style="--fr:${frameCss(r.frame)}"><img src="${PORTRAITS[r.avatar]}" alt=""/></div>
+        <b>${r.name}</b><span>${r.title}</span><em>${fmt(r.power)}</em><small>Tour ${r.floor || '—'}</small>
+      </div>`).join('');
+
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('trophy')}</div>
+      <h2>Classement mondial</h2>
+      <div class="subtitle">${RANK_POPULATION} profils · saison ${season} · jour ${dayInSeason + 1} / 120</div>
+      <div class="rk-podium">${podium}</div>
+      <div class="rk-note">${icon('clock')} Les profils évoluent chaque jour : les bots s'entraînent, invoquent et grimpent pendant que tu joues.</div>
+      <div class="rk-head"><span>#</span><span>Joueur</span><span>Niv.</span><span>Tour</span><span>Puissance</span></div>
+      <div class="rk-list">${rows.map(rowHTML).join('')}</div>
+      <div class="rk-me">
+        <span>Ton rang</span><b>${me.rank}<small>/${rows.length}</small></b>
+        <div>${icon('swords')} ${fmt(me.power)} <i>score ${fmt(rankScore(me.power, me.floor))}</i></div>
+        <button class="btn small" data-jump-me>Me retrouver</button>
+      </div>`, '#d8b45aaa', 'xl');
+
+    const list = modal.querySelector<HTMLElement>('.rk-list')!;
+    const go = (): void => {
+      const row = list.querySelector<HTMLElement>('.rk-row.me');
+      // scrollIntoView n'existe pas dans tous les environnements (aperçus, tests).
+      if (typeof row?.scrollIntoView === 'function') row.scrollIntoView({ block: 'center' });
+      else if (row && list) list.scrollTop = Math.max(0, row.offsetTop - list.clientHeight / 2);
+    };
+    modal.querySelector('[data-jump-me]')?.addEventListener('click', () => { audio.click(); go(); });
+    // Ouvre directement sur la zone du joueur si son rang est bas.
+    window.setTimeout(go, 60);
+  }
+
+  /* ====================== Entraînement ====================== */
+
+  /**
+   * Écran d'entraînement.
+   *
+   * On choisit UN héros, on règle les défenses du mannequin, on lit ses trois
+   * capacités, puis on entre dans l'arène. Le mannequin ne riposte pas : le but
+   * est de mesurer, pas de survivre.
+   */
+  openTraining(heroId?: string): void {
+    const owned = HEROES.filter((h) => store.owns(h.id));
+    let pick = owned.find((h) => h.id === heroId) ?? owned[0];
+    if (!pick) return;
+    let preset = DUMMY_PRESETS[1]!;
+
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('swords')}</div>
+      <h2>Arène d'entraînement</h2>
+      <div class="subtitle">Un héros, un mannequin invincible, tous les chiffres à l'écran.</div>
+      <div class="tr-wrap">
+        <div class="tr-pick">
+          <div class="cd-sec">Choisis ton héros</div>
+          <div class="tr-heroes"></div>
+          <div class="cd-sec">Mannequin</div>
+          <div class="tr-presets"></div>
+          <p class="tr-hint"></p>
+          <div class="tr-sliders">
+            <label>Armure <output data-out="armor"></output><input type="range" min="0" max="300" step="10" data-sl="armor"/></label>
+            <label>Résistance <output data-out="res"></output><input type="range" min="0" max="300" step="10" data-sl="res"/></label>
+          </div>
+        </div>
+        <div class="tr-detail"></div>
+      </div>
+      <button class="btn big fight" data-enter>${icon('swords')} Entrer dans l'arène</button>`, '#6ad8ffaa', 'xl');
+
+    const heroesEl = modal.querySelector<HTMLElement>('.tr-heroes')!;
+    const presetsEl = modal.querySelector<HTMLElement>('.tr-presets')!;
+    const hintEl = modal.querySelector<HTMLElement>('.tr-hint')!;
+    const detailEl = modal.querySelector<HTMLElement>('.tr-detail')!;
+    const armorInput = modal.querySelector<HTMLInputElement>('[data-sl="armor"]')!;
+    const resInput = modal.querySelector<HTMLInputElement>('[data-sl="res"]')!;
+
+    const sync = (): void => {
+      armorInput.value = String(preset.armor);
+      resInput.value = String(preset.res);
+      for (const k of ['armor', 'res'] as const) {
+        const out = modal.querySelector<HTMLOutputElement>(`[data-out="${k}"]`);
+        if (out) out.textContent = String(k === 'armor' ? preset.armor : preset.res);
+      }
+      const st = trainingStage(preset.armor, preset.res, pick!.name);
+      detailEl.innerHTML = `
+        <div class="tr-id" style="--c:${pick!.css}">
+          <img src="${PORTRAITS[pick!.id]}" alt=""/>
+          <div>
+            <span class="hd-rar ${pick!.rarity}">${pick!.rarity}</span>
+            <h3>${pick!.name}</h3>
+            <em>${pick!.title}</em>
+            ${starsHTML(store.starsOf(pick!), 'mini')}
+            <small>Niv. ${store.levelOf(pick!)} · ${fmt(heroPower(pick!, store.starsOf(pick!), store.levelOf(pick!)))} puissance</small>
+          </div>
+        </div>
+        <div class="tr-abil">
+          ${(['attack', 'skill', 'ultimate'] as const).map((k) => {
+            const a = pick!.abilities[k];
+            return `<div class="tr-ab ${k}"><span>${icon(a.icon)}</span><div><small>${k === 'attack' ? 'Attaque' : k === 'skill' ? 'Compétence' : 'Ultime'}</small><b>${a.name}</b><p>${a.text}</p></div></div>`;
+          }).join('')}
+        </div>
+        <div class="tr-dummy">
+          <div class="td-art"><img src="${ART.enemy_boneknight}" alt=""/></div>
+          <div class="td-txt"><b>${st.enemies[0]!.def.name}</b>
+          <span>${preset.text}</span>
+          <small>${icon('shield')} ${preset.armor} armure · ${icon('flame')} ${preset.res} résistance</small></div>
+        </div>`;
+      void st;
+    };
+
+    const render = (): void => {
+      heroesEl.innerHTML = owned.map((h) => `<button class="tr-h ${h.id === pick!.id ? 'on' : ''}" data-hero="${h.id}" style="--c:${h.css}" title="${h.name}">
+        <img src="${PORTRAITS[h.id]}" alt=""/><span>${h.name.replace('Frère ', '')}</span></button>`).join('');
+      presetsEl.innerHTML = DUMMY_PRESETS.map((p) => `<button class="tr-p ${p.name === preset.name ? 'on' : ''}" data-preset="${p.name}">${p.name}</button>`).join('');
+      hintEl.textContent = preset.text;
+      sync();
+    };
+
+    modal.addEventListener('input', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (!t.dataset.sl) return;
+      const armor = Number(armorInput.value);
+      const res = Number(resInput.value);
+      preset = { name: 'Personnalisé', armor, res, text: 'Réglage manuel du mannequin.' };
+      modal.querySelectorAll('.tr-p').forEach((b) => b.classList.remove('on'));
+      hintEl.textContent = preset.text;
+      for (const k of ['armor', 'res'] as const) {
+        const out = modal.querySelector<HTMLOutputElement>(`[data-out="${k}"]`);
+        if (out) out.textContent = String(k === 'armor' ? armor : res);
+      }
+      renderDetailOnly();
+    });
+
+    const renderDetailOnly = (): void => {
+      const st = trainingStage(preset.armor, preset.res, pick!.name);
+      const dummy = st.enemies[0]!.def;
+      const txt = detailEl.querySelector('.td-txt');
+      if (txt) txt.innerHTML = `<b>${dummy.name}</b><span>${preset.text}</span><small>${icon('shield')} ${preset.armor} armure · ${icon('flame')} ${preset.res} résistance</small>`;
+    };
+
+    modal.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const h = t.closest<HTMLElement>('[data-hero]');
+      if (h) {
+        pick = HEROES.find((x) => x.id === h.dataset.hero) ?? pick;
+        audio.hover();
+        render();
+        return;
+      }
+      const p = t.closest<HTMLElement>('[data-preset]');
+      if (p) {
+        preset = DUMMY_PRESETS.find((x) => x.name === p.dataset.preset) ?? preset;
+        audio.hover();
+        render();
+        return;
+      }
+      if (t.closest('[data-enter]')) {
+        audio.click();
+        this.emit('startTraining', { heroId: pick!.id, armor: preset.armor, res: preset.res });
+      }
+    });
+    render();
+  }
+
   /** Chapitre affiché dans la campagne (mémorisé entre deux ouvertures). */
   private campChapter: number | null = null;
 
-  /** Nom des chapitres ; tout chapitre non listé reçoit un nom générique. */
-  private static readonly CHAPTER_NAMES: Record<number, string> = {
-    1: 'Les Faubourgs Maudits',
-    2: 'Le Royaume de Cendre',
-  };
+  /** Nom des chapitres (source unique : les données de campagne). */
+  private static readonly CHAPTER_NAMES: Record<number, string> = Object.fromEntries(CHAPTERS.map((c) => [c.id, c.name]));
 
   private static readonly ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
@@ -829,14 +1138,14 @@ export class UI extends Emitter<UIEvents> {
     const pos: Record<Slot, string> = { weapon: 'tl', helm: 'tr', armor: 'bl', boots: 'br' };
     return `<div class="hd-gear">${SLOT_LIST.map((sl) => {
       const it = eq[sl.id];
-      const col = it ? GEAR[it.rarity].css : 'rgba(227,192,119,.3)';
+      const col = it ? itemCss(it) : 'rgba(227,192,119,.3)';
       return `<button class="eq-slot ${pos[sl.id]} ${it ? `on r-${it.rarity}` : 'empty'}" data-slot="${sl.id}" style="--rc:${col}"
-          title="${it ? `${it.name} (${GEAR[it.rarity].name})` : sl.name}">
+          title="${it ? `${it.name} (${itemRarity(it)})` : sl.name}">
         <img class="eq-art" src="${GEAR_ART[sl.id]}" alt="" draggable="false"/>
         <span class="eq-frame"></span>
         ${it ? `<span class="eq-lvl">${it.level}</span>` : `<span class="eq-plus">+</span>`}
         <span class="eq-tip"><b>${it ? it.name : sl.name}</b><small>${
-          it ? `${GEAR[it.rarity].name} · +${it.main}% ${mainLabel(it.slot)}` : 'Emplacement vide · clique pour équiper'
+          it ? `${itemRarity(it)} · +${it.main}% ${mainLabel(it.slot)}${it.effect ? ` · ${it.effect.name}` : ''}` : 'Emplacement vide · clique pour équiper'
         }</small></span>
       </button>`;
     }).join('')}<div class="eq-picker"></div></div>`;
@@ -847,9 +1156,10 @@ export class UI extends Emitter<UIEvents> {
     const list = store.inventoryFor(slot).slice(0, 24);
     const cur = store.equippedIn(h.id)[slot];
     const rows = list.map((it) => `
-      <button class="eq-row r-${it.rarity}" data-item="${it.id}" style="--rc:${GEAR[it.rarity].css}">
+      <button class="eq-row r-${it.rarity}" data-item="${it.id}" style="--rc:${itemCss(it)}">
         <img class="eq-thumb" src="${GEAR_ART[it.slot]}" alt="" draggable="false"/>
-        <span class="eq-row-main"><b>${it.name}</b><small>${GEAR[it.rarity].name} · niv. ${it.level}</small></span>
+        <span class="eq-row-main"><b>${it.name}${it.relic ? ' <em class="eq-relic">REL</em>' : ''}</b><small>${itemRarity(it)} · niv. ${it.level}</small>
+          ${it.effect ? `<em class="eq-fx">${icon('bolt')} ${it.effect.name} — ${it.effect.text}</em>` : ''}</span>
         <span class="eq-row-stats">+${it.main}% ${mainLabel(it.slot)}${
           it.subs.length ? `<small>${it.subs.map((sb) => `${SUB_LABEL[sb.stat]} +${sb.value}%`).join(' · ')}</small>` : ''
         }</span>
