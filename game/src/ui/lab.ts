@@ -1,5 +1,5 @@
 import { HEROES } from '../data/heroes';
-import { PORTRAITS, ULT_ART, ULT_FRAMES } from '../assets';
+import { PORTRAITS, ULT_ART, ULT_FRAMES, ULT_VIDEO } from '../assets';
 import { audio } from '../audio/AudioEngine';
 import {
   ARCHETYPES,
@@ -12,7 +12,7 @@ import {
   type UltStyle,
 } from './ultimate';
 import { fullDuration, fullUltHTML } from './ultimate-full';
-import { CINE_MS, CINE_SHOTS, cineHTML, cineSound } from './ultimate-cine';
+import { CINE_MS, CINE_SHOTS, VIDEO_MS, cineHTML, cineSound, hasVideo, playVideo, videoUltHTML } from './ultimate-cine';
 import './ultimate.css';
 import './ultimate-full.css';
 import './ultimate-cine.css';
@@ -28,14 +28,14 @@ import './ultimate-cine.css';
  * On choisit en regardant. Le réglage est mémorisé et utilisé en combat.
  */
 
-export type UltMode = 'cine' | 'full' | 'card';
+export type UltMode = 'video' | 'cine' | 'full' | 'card';
 const MODE_KEY = 'legendes-ult-mode';
 
 export function getUltMode(): UltMode {
   try {
     const v = localStorage.getItem(MODE_KEY);
-    return v === 'card' || v === 'full' ? v : 'cine';
-  } catch { return 'cine'; }
+    return v === 'card' || v === 'full' || v === 'cine' ? v : 'video';
+  } catch { return 'video'; }
 }
 export function setUltMode(m: UltMode): void {
   try { localStorage.setItem(MODE_KEY, m); } catch { /* ignoré */ }
@@ -83,7 +83,8 @@ export function mountLab(): void {
       </div>
     </header>
     <div class="lab-modes">
-      <button class="lab-mode" data-mode="cine"><b>Cinématique</b><span>7 plans · dessin animé image par image · son</span></button>
+      <button class="lab-mode" data-mode="video"><b>Vidéo</b><span>un vrai fichier vidéo, encodé image par image</span></button>
+      <button class="lab-mode" data-mode="cine"><b>Scène animée</b><span>7 plans en DOM · essayé avant la vidéo</span></button>
       <button class="lab-mode" data-mode="full"><b>Scène continue</b><span>l'essai précédent · 5 actes · un seul plan</span></button>
       <button class="lab-mode" data-mode="card"><b>Carton du nom</b><span>la révélation seule · 4 styles · 1,5 s</span></button>
     </div>
@@ -126,7 +127,7 @@ export function mountLab(): void {
 
   const stop = (): void => {
     window.clearTimeout(timer); window.clearTimeout(loop);
-    stage.querySelectorAll('.ult, .ucf, .ca').forEach((n) => n.remove());
+    stage.querySelectorAll('.ult, .ucf, .ca, .cvid').forEach((n) => n.remove());
   };
 
   const markers = (): Mark[] => (mode === 'cine' ? MARKS_CINE : mode === 'full' ? MARKS_FULL : []);
@@ -167,6 +168,18 @@ export function mountLab(): void {
       }, dur);
       return;
     }
+    if (mode === 'video') {
+      stage.insertAdjacentHTML('beforeend', videoUltHTML(d.id, d, { lab: true }));
+      const v = stage.querySelector<HTMLVideoElement>('.cvid-el');
+      const dur = VIDEO_MS;
+      runProgress(dur, true);
+      if (v) playVideo(v);
+      timer = window.setTimeout(() => {
+        stage.querySelectorAll('.cvid').forEach((n) => n.remove());
+        if (!once) loop = window.setTimeout(play, 500);
+      }, dur);
+      return;
+    }
     const dur = mode === 'cine' ? CINE_MS : fullDuration(style);
     stage.insertAdjacentHTML('beforeend', mode === 'cine'
       ? cineHTML(style, d, { lab: true })
@@ -187,7 +200,7 @@ export function mountLab(): void {
 
   const drawMarks = (): void => {
     const lines = markers();
-    const total = mode === 'cine' ? CINE_MS : fullDuration(style);
+    const total = mode === 'video' ? VIDEO_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
     actsEl.innerHTML = lines.map((m, i) => {
       const pct = Math.max(0, Math.min(100, (m.at / total) * 100));
       return `<div class="lab-act${i === 0 ? ' first' : ''}" data-at="${m.at}" style="left:${pct}%"
@@ -228,8 +241,10 @@ export function mountLab(): void {
         <div class="li-meta">${s.ms} ms · carton du nom</div>`;
       return;
     }
-    const dur = mode === 'cine' ? CINE_MS : fullDuration(style);
-    const what = mode === 'cine'
+    const dur = mode === 'video' ? VIDEO_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
+    const what = mode === 'video'
+      ? (hasVideo(def.id) ? 'Vidéo : 140 images calculées puis encodées en WebM' : 'Pas encore de vidéo pour ce héros')
+      : mode === 'cine'
       ? (ULT_FRAMES[def.id]
         ? '7 plans : large → illustration → blanc → **les 4 dessins joués comme un dessin animé** → impact → nom → sortie'
         : '7 plans : large → illustration → blanc → détail → impact → nom → sortie (animation à venir pour ce héros)')
@@ -243,8 +258,9 @@ export function mountLab(): void {
       const a = ultDataOf(h).arch;
       const hasArt = Boolean(ULT_ART[h.id]);
       const animated = Boolean(ULT_FRAMES[h.id]);
+      const vid = Boolean(ULT_VIDEO[h.id]);
       return `<button class="lab-hero${h.id === heroId ? ' on' : ''}${hasArt ? ' has-art' : ''}" data-hero="${h.id}" style="--c:${h.css}"
-        title="${h.name} — ${ARCHETYPES.find((x) => x.id === a)?.label}${animated ? ' · animation 4 dessins' : hasArt ? ' · illustration d’ultime' : ' · portrait (à venir)'}">
+        title="${h.name} — ${ARCHETYPES.find((x) => x.id === a)?.label}${vid ? ' · vidéo' : animated ? ' · animation 4 dessins' : hasArt ? ' · illustration' : ' · portrait'}">
         <img src="${PORTRAITS[h.id]}" alt="" draggable="false"/>
         <span>${h.name}</span>
       </button>`;

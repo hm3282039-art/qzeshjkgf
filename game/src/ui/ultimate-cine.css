@@ -353,3 +353,18 @@
   .ca * { animation-duration: 1500ms !important; }
   .ca-shot { animation-duration: 1700ms !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE LECTEUR VIDÉO — un vrai fichier vidéo, pas des images empilées.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cvid { position: absolute; inset: 0; z-index: 60; overflow: hidden; background: #000;
+  pointer-events: none; isolation: isolate; }
+.cvid-el { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  display: block; background: #000; }
+/* un liseré doré, pour que ça ressemble à une séquence de jeu et pas à une pub */
+.cvid::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(227,192,119,.18), inset 0 0 5rem rgba(0,0,0,.55); }
+.cvid-skip { position: absolute; left: 0; right: 0; bottom: 0.35rem; text-align: center;
+  font-family: var(--font-title); font-size: 0.55rem; letter-spacing: 0.22em;
+  text-transform: uppercase; color: rgba(255,255,255,.35); z-index: 2; }
+.cvid-lab .cvid-skip { display: none; }

@@ -1,4 +1,4 @@
-import { ART, SCENE_BG, ULT_ART, ULT_FRAMES } from '../assets';
+import { ART, SCENE_BG, ULT_ART, ULT_FRAMES, ULT_VIDEO } from '../assets';
 import { audio } from '../audio/AudioEngine';
 import type { Archetype, UltData, UltStyle } from './ultimate';
 
@@ -23,6 +23,12 @@ import type { Archetype, UltData, UltStyle } from './ultimate';
 
 /** Durée totale, en ms. */
 export const CINE_MS = 6800;
+
+/** Durée d'une vidéo d'ultime (fichier WebM), en ms. */
+export const VIDEO_MS = 7000;
+
+/** Vrai si ce héros a déjà sa vidéo. */
+export const hasVideo = (id: string): boolean => Boolean(ULT_VIDEO[id]);
 
 /** Les plans (départ, durée, libellé). */
 export const CINE_SHOTS = [
@@ -149,6 +155,28 @@ export function cineHTML(style: UltStyle, d: UltData, o: CineOptions = {}): stri
   return `<div class="${cls}" style="--c:${d.css};--c2:${d.css2}">
     ${s1}${s2}${s3}${s4}${s5}${s6}${s7}
   </div>`;
+}
+
+/**
+ * Le lecteur vidéo : une VRAIE vidéo, jouée comme YouTube.
+ * Rien n'est superposé par le navigateur — c'est ffmpeg qui a calculé les 140
+ * images et les a encodées en un seul fichier.
+ */
+export function videoUltHTML(id: string, d: UltData, o: { lab?: boolean } = {}): string {
+  const src = ULT_VIDEO[id];
+  if (!src) return cineHTML('cinema', d, o);
+  return `<div class="cvid${o.lab ? ' cvid-lab' : ''}" style="--c:${d.css}">
+    <video class="cvid-el" src="${src}" autoplay muted playsinline preload="auto"></video>
+    <div class="cvid-skip">${esc(d.hero)} · ${esc(d.name)}</div>
+  </div>`;
+}
+
+/** Relance la vidéo de zéro (le laboratoire s'en sert pour rejouer). */
+export function playVideo(el: HTMLVideoElement): void {
+  try {
+    el.currentTime = 0;
+    void el.play();
+  } catch { /* le navigateur a refusé : la vidéo reste sur sa première image */ }
 }
 
 /** La bande-son, calée sur les coupes. */

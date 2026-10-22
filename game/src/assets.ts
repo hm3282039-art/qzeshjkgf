@@ -75,6 +75,17 @@ import pAuroreUrl from './assets/portrait_aurore.webp';
 import zephyrUrl from './assets/hero_zephyr.webp';
 import pZephyrUrl from './assets/portrait_zephyr.webp';
 import type { SceneId, TextureKey } from './data/heroes';
+import vKaelUrl from './assets/ultvid_kael.webm';
+import vLyraUrl from './assets/ultvid_lyra.webm';
+import vMorwenUrl from './assets/ultvid_morwen.webm';
+import vSerenUrl from './assets/ultvid_seren.webm';
+import vAldricUrl from './assets/ultvid_aldric.webm';
+import vThorneUrl from './assets/ultvid_thorne.webm';
+import vNyxUrl from './assets/ultvid_nyx.webm';
+import vAshkaUrl from './assets/ultvid_ashka.webm';
+import vVaelenUrl from './assets/ultvid_vaelen.webm';
+import vSylvaineUrl from './assets/ultvid_sylvaine.webm';
+
 import sqKael0Url from './assets/seq_kael_0.webp';
 import sqKael1Url from './assets/seq_kael_1.webp';
 import sqKael2Url from './assets/seq_kael_2.webp';
@@ -403,4 +414,22 @@ export const ULT_FRAMES: Partial<Record<string, string[]>> = {
   ashka: [sqAshka0Url, sqAshka1Url, sqAshka2Url, sqAshka3Url],
   vaelen: [sqVaelen0Url, sqVaelen1Url, sqVaelen2Url, sqVaelen3Url],
   sylvaine: [sqSylvaine0Url, sqSylvaine1Url, sqSylvaine2Url, sqSylvaine3Url],
+};
+
+/**
+ * LES VIDÉOS D'ULTIME — de vrais fichiers vidéo (WebM), calculés image par
+ * image puis encodés. Le jeu les joue comme YouTube : une seule vidéo, pas des
+ * images empilées. `Vite` les intègre directement dans la page unique.
+ */
+export const ULT_VIDEO: Partial<Record<string, string>> = {
+  kael: vKaelUrl,
+  lyra: vLyraUrl,
+  morwen: vMorwenUrl,
+  seren: vSerenUrl,
+  aldric: vAldricUrl,
+  thorne: vThorneUrl,
+  nyx: vNyxUrl,
+  ashka: vAshkaUrl,
+  vaelen: vVaelenUrl,
+  sylvaine: vSylvaineUrl,
 };

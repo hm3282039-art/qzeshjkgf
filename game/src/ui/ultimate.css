@@ -450,6 +450,7 @@
 
 @media (max-width: 760px) {
   .lab-styles { grid-template-columns: repeat(2, 1fr); }
+  .lab-modes { grid-template-columns: repeat(2, 1fr) !important; }
   .lab-modes { grid-template-columns: 1fr; }
   .lab-title small { display: none; }
 }
@@ -458,7 +459,7 @@
 .ult-host { position: absolute; inset: 0; pointer-events: none; z-index: 60; }
 
 /* ═══════════════════ SÉLECTEUR DE MODE (laboratoire) ═══════════════════ */
-.lab-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.lab-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
 .lab-mode { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.5rem 0.8rem; text-align: left;
   border-radius: 0.45rem; border: 1px solid #33284a; background: linear-gradient(180deg, #150f24, #0b0814);
   transition: 0.15s; }
