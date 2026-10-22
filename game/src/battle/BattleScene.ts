@@ -334,7 +334,7 @@ export class BattleScene extends Emitter<BattleEvents> {
       scale: { start: [0.09, 0.2], end: [0.06, 0.14] }, alpha: 0.5, tint: [0x8a7a70, 0x5a4a44, 0xff8a4a],
       blend: 'normal',
     });
-    this.rain.enabled = this.snow.enabled = this.ash.enabled = false;
+    this.applyWeather(this.scene);
     this.fgLayer.addChild(this.ash.container, this.snow.container, this.rain.container);
 
     this.cineMotes = new ParticleEmitter({
@@ -415,6 +415,20 @@ export class BattleScene extends Emitter<BattleEvents> {
     this.layout();
   }
 
+  /**
+   * Active le climat du décor courant.
+   *
+   * Appelée deux fois : une première fois par `buildDecor()` au tout début du
+   * constructeur (les émetteurs ne sont pas encore créés — d'où le garde-fou),
+   * puis une seconde fois une fois la météo construite.
+   */
+  private applyWeather(scene: SceneId | null): void {
+    if (!this.rain || !this.snow || !this.ash) return;
+    this.rain.enabled = scene === 'swamp';
+    this.snow.enabled = scene === 'citadel';
+    this.ash.enabled = scene === 'throne';
+  }
+
   /** (Re)construit le décor d'un niveau. Les textures sont partagées : seuls les objets sont détruits. */
   private buildDecor(scene: SceneId): void {
     if (this.scene === scene) return;
@@ -435,9 +449,7 @@ export class BattleScene extends Emitter<BattleEvents> {
     const swamp = scene === 'swamp';
 
     // Un seul temps par décor : la pluie du marais n'a rien à voir avec la neige de la citadelle.
-    this.rain.enabled = scene === 'swamp';
-    this.snow.enabled = scene === 'citadel';
-    this.ash.enabled = scene === 'throne';
+    this.applyWeather(scene);
 
     // Quatre décors, quatre ambiances : le chapitre II ne ressemble plus au I.
     const bgTex =
