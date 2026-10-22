@@ -13,6 +13,37 @@ import { CINE_MS, CINE_SHOTS, cineDuration, cineHTML } from '../src/ui/ultimate-
 import { ULT_ART, ULT_FRAMES } from '../src/assets';
 import { RIGS } from '../src/data/rigs';
 import { PHASES, RIG_MS, ULT_POSES, applyPose, poseAt } from '../src/ui/ultimate-rig';
+import { EPIC_HIT, EPIC_MS, EPIC_PHASES, epicRigHTML, specOf } from '../src/ui/ultimate-epic';
+import { RIG9 } from '../src/data/rig9';
+
+/* ---------- 0. La séquence S3 : un squelette par héros ---------- */
+const epicHeroes = HEROES.filter((h) => specOf(h.id));
+if (epicHeroes.length !== Object.keys(RIGS).length) {
+  throw new Error(`${epicHeroes.length} squelettes S3 pour ${Object.keys(RIGS).length} héros découpés`);
+}
+let fine = 0;
+for (const h of epicHeroes) {
+  const spec = specOf(h.id)!;
+  const html = epicRigHTML(h.id);
+  if (/undefined|NaN|\[object/.test(html)) throw new Error(`valeur invalide dans le squelette ${h.id}`);
+  const bones = (html.match(/data-b=/g) ?? []).length;
+  const pieces = (html.match(/class="ep-p"/g) ?? []).length;
+  if (bones !== spec.bones.length) throw new Error(`${h.id} : ${bones} os montés pour ${spec.bones.length}`);
+  const expected = spec.bones.reduce((a, b) => a + b.pieces.length, 0);
+  if (pieces !== expected) throw new Error(`${h.id} : ${pieces} morceaux au lieu de ${expected}`);
+  if (spec.fine) {
+    fine++;
+    if (pieces !== 9) throw new Error(`${h.id} : ${pieces} morceaux fins au lieu de 9`);
+  }
+}
+if (Object.keys(RIG9).length !== fine) throw new Error('RIG9 et le squelette fin ne sont pas d\'accord');
+if (EPIC_PHASES[EPIC_PHASES.length - 1]!.at + EPIC_PHASES[EPIC_PHASES.length - 1]!.dur !== EPIC_MS) {
+  throw new Error('les phases S3 ne couvrent pas toute la séquence');
+}
+if (EPIC_HIT <= EPIC_PHASES[2]!.at || EPIC_HIT >= EPIC_PHASES[3]!.at + 1) {
+  throw new Error('le coup ne tombe pas au début de la phase d\'onde');
+}
+console.log(`Séquence S3 · ${epicHeroes.length} squelettes (${fine} en 9 morceaux) · coup à ${EPIC_HIT} ms`);
 
 /* ---------- 1. Le carton du nom : 4 styles × 27 héros ---------- */
 const signatures = {
@@ -130,13 +161,29 @@ const modes = document.querySelectorAll('[data-mode]');
 const styles = document.querySelectorAll('[data-style]');
 const heroes = document.querySelectorAll('[data-hero]');
 const acts = document.querySelectorAll('[data-at]');
-if (modes.length !== 4) throw new Error(`4 modes attendus, ${modes.length} trouvés`);
+if (modes.length !== 5) throw new Error(`5 modes attendus, ${modes.length} trouvés`);
 if (styles.length !== ULT_STYLES.length) throw new Error(`${ULT_STYLES.length} styles attendus, ${styles.length} trouvés`);
 if (heroes.length !== HEROES.length) throw new Error(`${HEROES.length} héros attendus, ${heroes.length} trouvés`);
 // En mode vidéo il n'y a pas de repères : ils n'apparaissent qu'en mode « scène animée ».
-if (acts.length !== 0) throw new Error(`aucun repère attendu en mode vidéo, ${acts.length} trouvés`);
+if (acts.length !== EPIC_PHASES.length) {
+  throw new Error(`${EPIC_PHASES.length} repères attendus dans la séquence S3, ${acts.length} trouvés`);
+}
+const ep = document.querySelector('[data-stage] .ep');
+if (!ep) throw new Error('aucune séquence S3 montée par défaut');
+for (const layer of ['.ep-cam', '.ep-cutin', '.ep-slash', '.ep-shock', '.ep-sparks', '.ep-invert', '.ep-title', '.ep-bars']) {
+  if (!ep.querySelector(layer)) throw new Error(`couche « ${layer} » manquante`);
+}
+if (ep.querySelectorAll('.ep-p').length !== 9) {
+  throw new Error(`${ep.querySelectorAll('.ep-p').length} morceaux affichés au lieu de 9`);
+}
+if (ep.querySelectorAll('.ep-bone').length !== 8) {
+  throw new Error(`${ep.querySelectorAll('.ep-bone').length} os affichés au lieu de 8`);
+}
+
+// Puis la version à 5 morceaux (mode « Ultime S3 v1 »).
+(document.querySelector('[data-mode="rig"]') as HTMLElement).dispatchEvent(new window.Event('click'));
 const rigScene = document.querySelector('[data-stage] .rscene');
-if (!rigScene) throw new Error('aucun squelette monté par défaut');
+if (!rigScene) throw new Error('aucun squelette monté en mode Ultime S3 v1');
 if (document.querySelectorAll('[data-stage] .rg-p').length !== 5) throw new Error('5 morceaux attendus par héros');
 const rigged = Object.keys(RIGS).length;
 console.log(`Squelettes 2D · ${rigged} héros découpés · ${Object.keys(ULT_POSES).length} chorégraphies`);

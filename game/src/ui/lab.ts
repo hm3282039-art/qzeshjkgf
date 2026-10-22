@@ -14,6 +14,7 @@ import {
 import { fullDuration, fullUltHTML } from './ultimate-full';
 import { CINE_MS, CINE_SHOTS, cineHTML, cineSound } from './ultimate-cine';
 import { RIG_MS, playRig } from './ultimate-rig';
+import { EPIC_MS, EPIC_PHASES, playEpic, specOf } from './ultimate-epic';
 import { RIGS } from '../data/rigs';
 import './ultimate.css';
 import './ultimate-full.css';
@@ -30,14 +31,14 @@ import './ultimate-cine.css';
  * On choisit en regardant. Le réglage est mémorisé et utilisé en combat.
  */
 
-export type UltMode = 'rig' | 'cine' | 'full' | 'card';
+export type UltMode = 'epic' | 'rig' | 'cine' | 'full' | 'card';
 const MODE_KEY = 'legendes-ult-mode';
 
 export function getUltMode(): UltMode {
   try {
     const v = localStorage.getItem(MODE_KEY);
-    return v === 'card' || v === 'full' || v === 'cine' ? v : 'rig';
-  } catch { return 'rig'; }
+    return v === 'card' || v === 'full' || v === 'cine' || v === 'rig' ? v : 'epic';
+  } catch { return 'epic'; }
 }
 export function setUltMode(m: UltMode): void {
   try { localStorage.setItem(MODE_KEY, m); } catch { /* ignoré */ }
@@ -53,6 +54,7 @@ const FULL_STYLES: UltStyle[] = ['cinema', 'comics'];
 /** Repères du laboratoire, en millisecondes. */
 interface Mark { at: number; label: string; hint: string }
 
+const MARKS_EPIC: Mark[] = EPIC_PHASES.map((p) => ({ at: p.at, label: p.label, hint: `${p.at} → ${p.at + p.dur} ms` }));
 const MARKS_CINE: Mark[] = CINE_SHOTS.map((s) => ({ at: s.at, label: s.label, hint: s.hint }));
 const MARKS_FULL: Mark[] = [
   { at: 0, label: 'Entrée', hint: "la caméra pousse, le monde s'éteint" },
@@ -75,7 +77,7 @@ export function mountLab(): void {
     <header class="lab-top">
       <div class="lab-title">
         <b>Laboratoire d'ultimes</b>
-        <small>Trois façons de filmer le même ultime. Le combat, lui, ne change pas encore.</small>
+        <small>Cinq façons de filmer le même ultime. Le combat, lui, ne change pas encore.</small>
       </div>
       <div class="lab-acts">
         <button class="lab-btn ghost" data-sound>Son : oui</button>
@@ -85,7 +87,8 @@ export function mountLab(): void {
       </div>
     </header>
     <div class="lab-modes">
-      <button class="lab-mode" data-mode="rig"><b>Ultime S3</b><span>4 phases · caméra · impact frames · temps réel 60 i/s</span></button>
+      <button class="lab-mode" data-mode="epic"><b>Séquence S3</b><span>cut-in · squelette 9 morceaux · caméra · impact frames</span></button>
+      <button class="lab-mode" data-mode="rig"><b>Ultime S3 (v1)</b><span>4 phases · squelette 5 morceaux · temps réel 60 i/s</span></button>
       <button class="lab-mode" data-mode="cine"><b>Scène animée</b><span>7 plans en DOM · essayé avant la vidéo</span></button>
       <button class="lab-mode" data-mode="full"><b>Scène continue</b><span>l'essai précédent · 5 actes · un seul plan</span></button>
       <button class="lab-mode" data-mode="card"><b>Carton du nom</b><span>la révélation seule · 4 styles · 1,5 s</span></button>
@@ -129,10 +132,10 @@ export function mountLab(): void {
 
   const stop = (): void => {
     window.clearTimeout(timer); window.clearTimeout(loop);
-    stage.querySelectorAll('.ult, .ucf, .ca, .cvid, .rscene').forEach((n) => n.remove());
+    stage.querySelectorAll('.ult, .ucf, .ca, .cvid, .rscene, .ep').forEach((n) => n.remove());
   };
 
-  const markers = (): Mark[] => (mode === 'cine' ? MARKS_CINE : mode === 'full' ? MARKS_FULL : []);
+  const markers = (): Mark[] => (mode === 'epic' ? MARKS_EPIC : mode === 'cine' ? MARKS_CINE : mode === 'full' ? MARKS_FULL : []);
 
   /** Barre de progression + mise en avant du plan en cours. */
   const runProgress = (dur: number, on: boolean): void => {
@@ -170,6 +173,20 @@ export function mountLab(): void {
       }, dur);
       return;
     }
+    if (mode === 'epic') {
+      if (!specOf(d.id)) {
+        mode = 'rig';
+        drawModes();
+      } else {
+        playEpic(stage, d.id, d, style);
+        runProgress(EPIC_MS, true);
+        timer = window.setTimeout(() => {
+          stage.querySelectorAll('.ep').forEach((n) => n.remove());
+          if (!once) loop = window.setTimeout(play, 600);
+        }, EPIC_MS);
+        return;
+      }
+    }
     if (mode === 'rig') {
       if (!RIGS[d.id]) {
         // pas encore de squelette pour ce héros : on montre la scène animée
@@ -205,7 +222,7 @@ export function mountLab(): void {
 
   const drawMarks = (): void => {
     const lines = markers();
-    const total = mode === 'rig' ? RIG_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
+    const total = mode === 'epic' ? EPIC_MS : mode === 'rig' ? RIG_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
     actsEl.innerHTML = lines.map((m, i) => {
       const pct = Math.max(0, Math.min(100, (m.at / total) * 100));
       return `<div class="lab-act${i === 0 ? ' first' : ''}" data-at="${m.at}" style="left:${pct}%"
@@ -246,8 +263,12 @@ export function mountLab(): void {
         <div class="li-meta">${s.ms} ms · carton du nom</div>`;
       return;
     }
-    const dur = mode === 'rig' ? RIG_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
-    const what = mode === 'rig'
+    const dur = mode === 'epic' ? EPIC_MS : mode === 'rig' ? RIG_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
+    const what = mode === 'epic'
+      ? (specOf(def.id)
+        ? 'Cut-in de l\'illustration → squelette (9 morceaux pour Kael, 5 sinon) → élan → impact frames → onde → pose de fin. Caméra animée, 60 i/s, zéro chargement.'
+        : 'Pas encore de squelette pour ce héros.')
+      : mode === 'rig'
       ? (RIGS[def.id]
         ? 'Temps réel : teaser (visage) → dash → impact (impact frames) → pose de fin. Squelette de 5 morceaux, caméra animée, 60 i/s, zéro chargement.'
         : 'Pas encore de squelette pour ce héros (vidéo en attendant).')
