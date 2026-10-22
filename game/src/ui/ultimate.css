@@ -445,7 +445,7 @@
 .lab-hero { position: relative; }
 .lab-hero.has-art::after { content: ''; position: absolute; top: -2px; right: -2px; width: .42rem; height: .42rem;
   border-radius: 50%; background: #ffd36a; box-shadow: 0 0 0.5rem #ffd36a; }
-.lab-roster::before { content: 'pastille dorée = illustration d’ultime déjà dessinée'; flex: 0 0 100%;
+.lab-roster::before { content: 'pastille dorée = héros déjà dessiné (10/27)'; flex: 0 0 100%;
   font-size: .54rem; color: #7d719b; letter-spacing: .08em; }
 
 @media (max-width: 760px) {

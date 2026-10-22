@@ -75,6 +75,47 @@ import pAuroreUrl from './assets/portrait_aurore.webp';
 import zephyrUrl from './assets/hero_zephyr.webp';
 import pZephyrUrl from './assets/portrait_zephyr.webp';
 import type { SceneId, TextureKey } from './data/heroes';
+import sqKael0Url from './assets/seq_kael_0.webp';
+import sqKael1Url from './assets/seq_kael_1.webp';
+import sqKael2Url from './assets/seq_kael_2.webp';
+import sqKael3Url from './assets/seq_kael_3.webp';
+import sqLyra0Url from './assets/seq_lyra_0.webp';
+import sqLyra1Url from './assets/seq_lyra_1.webp';
+import sqLyra2Url from './assets/seq_lyra_2.webp';
+import sqLyra3Url from './assets/seq_lyra_3.webp';
+import sqMorwen0Url from './assets/seq_morwen_0.webp';
+import sqMorwen1Url from './assets/seq_morwen_1.webp';
+import sqMorwen2Url from './assets/seq_morwen_2.webp';
+import sqMorwen3Url from './assets/seq_morwen_3.webp';
+import sqSeren0Url from './assets/seq_seren_0.webp';
+import sqSeren1Url from './assets/seq_seren_1.webp';
+import sqSeren2Url from './assets/seq_seren_2.webp';
+import sqSeren3Url from './assets/seq_seren_3.webp';
+import sqAldric0Url from './assets/seq_aldric_0.webp';
+import sqAldric1Url from './assets/seq_aldric_1.webp';
+import sqAldric2Url from './assets/seq_aldric_2.webp';
+import sqAldric3Url from './assets/seq_aldric_3.webp';
+import sqThorne0Url from './assets/seq_thorne_0.webp';
+import sqThorne1Url from './assets/seq_thorne_1.webp';
+import sqThorne2Url from './assets/seq_thorne_2.webp';
+import sqThorne3Url from './assets/seq_thorne_3.webp';
+import sqNyx0Url from './assets/seq_nyx_0.webp';
+import sqNyx1Url from './assets/seq_nyx_1.webp';
+import sqNyx2Url from './assets/seq_nyx_2.webp';
+import sqNyx3Url from './assets/seq_nyx_3.webp';
+import sqAshka0Url from './assets/seq_ashka_0.webp';
+import sqAshka1Url from './assets/seq_ashka_1.webp';
+import sqAshka2Url from './assets/seq_ashka_2.webp';
+import sqAshka3Url from './assets/seq_ashka_3.webp';
+import sqVaelen0Url from './assets/seq_vaelen_0.webp';
+import sqVaelen1Url from './assets/seq_vaelen_1.webp';
+import sqVaelen2Url from './assets/seq_vaelen_2.webp';
+import sqVaelen3Url from './assets/seq_vaelen_3.webp';
+import sqSylvaine0Url from './assets/seq_sylvaine_0.webp';
+import sqSylvaine1Url from './assets/seq_sylvaine_1.webp';
+import sqSylvaine2Url from './assets/seq_sylvaine_2.webp';
+import sqSylvaine3Url from './assets/seq_sylvaine_3.webp';
+
 import ultKaelUrl from './assets/ult_kael.webp';
 import ultLyraUrl from './assets/ult_lyra.webp';
 import ultMorwenUrl from './assets/ult_morwen.webp';
@@ -343,4 +384,23 @@ export const ULT_ART: Partial<Record<string, string>> = {
   ashka: ultAshkaUrl,
   vaelen: ultVaelenUrl,
   sylvaine: ultSylvaineUrl,
+};
+
+/**
+ * LES IMAGES DE L'ULTIME — quatre dessins par héros, joués l'un après l'autre
+ * comme un dessin animé (l'animateur dessine le mouvement, le jeu le déroule).
+ * Le fond de chaque dessin est noir : à l'écran, le mode « screen » le fait
+ * disparaître, comme une pellicule transparente.
+ */
+export const ULT_FRAMES: Partial<Record<string, string[]>> = {
+  kael: [sqKael0Url, sqKael1Url, sqKael2Url, sqKael3Url],
+  lyra: [sqLyra0Url, sqLyra1Url, sqLyra2Url, sqLyra3Url],
+  morwen: [sqMorwen0Url, sqMorwen1Url, sqMorwen2Url, sqMorwen3Url],
+  seren: [sqSeren0Url, sqSeren1Url, sqSeren2Url, sqSeren3Url],
+  aldric: [sqAldric0Url, sqAldric1Url, sqAldric2Url, sqAldric3Url],
+  thorne: [sqThorne0Url, sqThorne1Url, sqThorne2Url, sqThorne3Url],
+  nyx: [sqNyx0Url, sqNyx1Url, sqNyx2Url, sqNyx3Url],
+  ashka: [sqAshka0Url, sqAshka1Url, sqAshka2Url, sqAshka3Url],
+  vaelen: [sqVaelen0Url, sqVaelen1Url, sqVaelen2Url, sqVaelen3Url],
+  sylvaine: [sqSylvaine0Url, sqSylvaine1Url, sqSylvaine2Url, sqSylvaine3Url],
 };

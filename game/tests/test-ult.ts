@@ -10,7 +10,7 @@ import { HEROES } from '../src/data/heroes';
 import { ARCHETYPES, ULT_STYLES, archetypeOf, ultDataOf, ultDuration, ultHTML } from '../src/ui/ultimate';
 import { fullDuration, fullUltHTML } from '../src/ui/ultimate-full';
 import { CINE_MS, CINE_SHOTS, cineDuration, cineHTML } from '../src/ui/ultimate-cine';
-import { ULT_ART } from '../src/assets';
+import { ULT_ART, ULT_FRAMES } from '../src/assets';
 
 /* ---------- 1. Le carton du nom : 4 styles × 27 héros ---------- */
 const signatures = {
@@ -75,6 +75,7 @@ if (last.at + last.dur > CINE_MS + 1) throw new Error('le dernier plan dépasse 
 const CINE_MARKERS = ['ca-s1', 'ca-s2', 'ca-s3', 'ca-s4', 'ca-s5', 'ca-s6', 'ca-s7',
   'ca-art', 'ca-sil', 'ca-foes-far', 'ca-shock', 'ca-hits', 'ca-title', 'ca-glyph', 'ca-lunge'];
 let c = 0;
+let animCount = 0;
 for (const s of FULL_STYLES) {
   for (const h of HEROES) {
     const d = ultDataOf(h);
@@ -87,6 +88,13 @@ for (const s of FULL_STYLES) {
     const expectedArt = ULT_ART[d.id] ?? d.portrait;
     if (!html.includes(expectedArt)) throw new Error(`ciné ${s}/${h.id} : illustration absente`);
     if (ULT_ART[d.id] && html.includes(d.portrait)) throw new Error(`ciné ${s}/${h.id} : portrait au lieu de l'illustration`);
+    const frames = ULT_FRAMES[d.id];
+    if (frames) {
+      if (frames.length !== 4) throw new Error(`${h.id} : ${frames.length} images au lieu de 4`);
+      if ((html.match(/class="ca-fr"/g) ?? []).length !== 4) throw new Error(`${h.id} : les 4 images ne sont pas montées`);
+      for (const f of frames) if (!html.includes(f)) throw new Error(`${h.id} : image d'animation manquante`);
+      animCount++;
+    }
     const titleBlock = html.slice(html.indexOf('ca-title'));
     const titleLetters = (titleBlock.match(/<i style="--i:\d+">[^<]*<\/i>/g) ?? []).length;
     if (titleLetters !== d.name.replace(/ /g, '').length) {
@@ -96,7 +104,7 @@ for (const s of FULL_STYLES) {
   }
 }
 const withArt = HEROES.filter((h) => ULT_ART[h.id]).length;
-console.log(`Cinématique · 7 plans · ${CINE_MS} ms · ${c} scènes · ${withArt}/${HEROES.length} héros illustrés`);
+console.log(`Cinématique · 7 plans · ${CINE_MS} ms · ${c} scènes · ${withArt}/${HEROES.length} héros illustrés · ${animCount / 2} animés`);
 
 /* ---------- 3. Couverture des 6 archétypes ---------- */
 const missing = ARCHETYPES.filter((a) => !used.has(a.id));

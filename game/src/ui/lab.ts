@@ -1,5 +1,5 @@
 import { HEROES } from '../data/heroes';
-import { PORTRAITS, ULT_ART } from '../assets';
+import { PORTRAITS, ULT_ART, ULT_FRAMES } from '../assets';
 import { audio } from '../audio/AudioEngine';
 import {
   ARCHETYPES,
@@ -83,7 +83,7 @@ export function mountLab(): void {
       </div>
     </header>
     <div class="lab-modes">
-      <button class="lab-mode" data-mode="cine"><b>Cinématique</b><span>7 plans de caméra · gros plan, ralenti, impact · son</span></button>
+      <button class="lab-mode" data-mode="cine"><b>Cinématique</b><span>7 plans · dessin animé image par image · son</span></button>
       <button class="lab-mode" data-mode="full"><b>Scène continue</b><span>l'essai précédent · 5 actes · un seul plan</span></button>
       <button class="lab-mode" data-mode="card"><b>Carton du nom</b><span>la révélation seule · 4 styles · 1,5 s</span></button>
     </div>
@@ -172,7 +172,7 @@ export function mountLab(): void {
       ? cineHTML(style, d, { lab: true })
       : fullUltHTML(style, d, { lab: true }));
     runProgress(dur, true);
-    if (mode === 'cine' && sound && audioReady) cineSound();
+    if (mode === 'cine' && sound && audioReady) cineSound(Boolean(ULT_FRAMES[d.id]));
     const cls = mode === 'cine' ? '.ca' : '.ucf';
     timer = window.setTimeout(() => {
       stage.querySelectorAll(cls).forEach((n) => n.remove());
@@ -230,7 +230,9 @@ export function mountLab(): void {
     }
     const dur = mode === 'cine' ? CINE_MS : fullDuration(style);
     const what = mode === 'cine'
-      ? `7 plans : large → illustration → blanc → détail → impact → nom → sortie${ULT_ART[def.id] ? '' : ' (portrait : illustration à venir)'}`
+      ? (ULT_FRAMES[def.id]
+        ? '7 plans : large → illustration → blanc → **les 4 dessins joués comme un dessin animé** → impact → nom → sortie'
+        : '7 plans : large → illustration → blanc → détail → impact → nom → sortie (animation à venir pour ce héros)')
       : 'un seul plan continu, 5 actes';
     info.innerHTML = `<div class="li-txt"><b>${s.letter} · ${s.name} — ${arch.label}</b><span>${what}. ${arch.show}</span></div>
       <div class="li-meta">${(dur / 1000).toFixed(1)} s · ${def.name} · « ${d.name} »</div>`;
@@ -240,8 +242,9 @@ export function mountLab(): void {
     rosterEl.innerHTML = HEROES.map((h) => {
       const a = ultDataOf(h).arch;
       const hasArt = Boolean(ULT_ART[h.id]);
+      const animated = Boolean(ULT_FRAMES[h.id]);
       return `<button class="lab-hero${h.id === heroId ? ' on' : ''}${hasArt ? ' has-art' : ''}" data-hero="${h.id}" style="--c:${h.css}"
-        title="${h.name} — ${ARCHETYPES.find((x) => x.id === a)?.label}${hasArt ? ' · illustration d’ultime' : ' · portrait (illustration à venir)'}">
+        title="${h.name} — ${ARCHETYPES.find((x) => x.id === a)?.label}${animated ? ' · animation 4 dessins' : hasArt ? ' · illustration d’ultime' : ' · portrait (à venir)'}">
         <img src="${PORTRAITS[h.id]}" alt="" draggable="false"/>
         <span>${h.name}</span>
       </button>`;

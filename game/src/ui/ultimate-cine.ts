@@ -1,4 +1,4 @@
-import { ART, SCENE_BG, ULT_ART } from '../assets';
+import { ART, SCENE_BG, ULT_ART, ULT_FRAMES } from '../assets';
 import { audio } from '../audio/AudioEngine';
 import type { Archetype, UltData, UltStyle } from './ultimate';
 
@@ -29,10 +29,10 @@ export const CINE_SHOTS = [
   { at: 0, dur: 900, label: 'Plan large', hint: "l'arène, les ennemis, l'ombre du héros" },
   { at: 880, dur: 1420, label: 'Illustration', hint: 'la grande image arrive' },
   { at: 2280, dur: 800, label: 'Le blanc', hint: 'image surexposée, filets colorés' },
-  { at: 3060, dur: 800, label: 'Le détail', hint: 'gros plan sur le geste' },
-  { at: 3840, dur: 1000, label: "L'impact", hint: 'flash, cendres, dégâts' },
-  { at: 4820, dur: 1280, label: 'Le nom', hint: "le carton d'ultime" },
-  { at: 6080, dur: 720, label: 'Sortie', hint: 'fondu au noir' },
+  { at: 3060, dur: 1340, label: "L'animation", hint: 'les 4 dessins de l\'action, image par image' },
+  { at: 4400, dur: 900, label: "L'impact", hint: 'flash, cendres, dégâts' },
+  { at: 5300, dur: 1150, label: 'Le nom', hint: "le carton d'ultime" },
+  { at: 6450, dur: 350, label: 'Sortie', hint: 'fondu au noir' },
 ] as const;
 
 export const cineDuration = (): number => CINE_MS;
@@ -105,12 +105,17 @@ export function cineHTML(style: UltStyle, d: UltData, o: CineOptions = {}): stri
     <div class="ca-glyph">${d.glyph}</div>
     <div class="ca-scribble"></div>`);
 
-  /* ── 4 · LE DÉTAIL ────────────────────────────────────────────────────── */
-  const s4 = shot('s4', 3, `
-    <div class="ca-art crop" style="background-image:url(${art});background-position:${cropPos};background-size:${real ? '190%' : '150%'}"></div>
-    <div class="ca-speed">${Array.from({ length: 16 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
-    <div class="ca-shake"></div>
-    <div class="ca-flash early"></div>`);
+  /* ── 4 · L'ANIMATION — quatre dessins joués image par image ───────────── */
+  const frames = ULT_FRAMES[d.id];
+  const animInner = frames
+    ? `<div class="ca-frame-bg"></div>
+       <div class="ca-seq">${frames.map((f, i) =>
+         `<i class="ca-fr" style="--i:${i};background-image:url(${f})"></i>`).join('')}</div>
+       <div class="ca-speed">${Array.from({ length: 16 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
+       <div class="ca-impactline"></div>`
+    : `<div class="ca-art crop" style="background-image:url(${art});background-position:${cropPos};background-size:${real ? '190%' : '150%'}"></div>
+       <div class="ca-speed">${Array.from({ length: 16 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>`;
+  const s4 = shot('s4', 3, `${animInner}<div class="ca-flash early"></div>`);
 
   /* ── 5 · L'IMPACT ─────────────────────────────────────────────────────── */
   const hits = [[-24, -10, 1], [14, -24, 0], [30, 2, 0], [-4, 14, 0]]
@@ -147,16 +152,23 @@ export function cineHTML(style: UltStyle, d: UltData, o: CineOptions = {}): stri
 }
 
 /** La bande-son, calée sur les coupes. */
-export function cineSound(): void {
+export function cineSound(animated = false): void {
   const P = (n: string, at: number, vol = 1): void => audio.play(n, { delay: at / 1000, vol });
   P('riser', 0, 0.5);
   P('braam', 860, 0.85);
   P('cutin', 2280, 0.8);
-  P('blink', 3040, 0.55);
-  P('blink', 3820, 0.75);
-  P('ult_impact', 3840, 0.95);
-  P('crit', 3920, 0.8);
-  P('explosion', 3900, 0.45);
-  P('choir', 4800, 0.7);
-  P('land', 6060, 0.6);
+  if (animated) {
+    // Chaque dessin de l'animation claque comme un coup de crayon.
+    P('blink', 3060, 0.55);
+    P('hit_heavy', 3360, 0.6);
+    P('hit_heavy', 3660, 0.7);
+  } else {
+    P('blink', 3060, 0.55);
+    P('blink', 3820, 0.75);
+  }
+  P('ult_impact', 4400, 0.95);
+  P('crit', 4460, 0.8);
+  P('explosion', 4440, 0.45);
+  P('choir', 5290, 0.7);
+  P('land', 6440, 0.6);
 }
