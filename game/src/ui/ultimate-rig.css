@@ -1,0 +1,124 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCÈNE D'ULTIME EN TEMPS RÉEL (rig 2D)
+   Le héros est un empilement de cinq images ; le moteur les tourne autour de
+   leurs pivots 60 fois par seconde. Aucun fichier vidéo, aucun canvas.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rscene { position: absolute; inset: 0; overflow: hidden; z-index: 60;
+  background: #05030a; isolation: isolate; pointer-events: none;
+  font-family: var(--font-body); }
+
+/* Décor : dégradé + halo de la couleur du héros */
+.rs-bg { position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 78%, color-mix(in srgb, var(--c) 16%, #120a1e), transparent 72%),
+    radial-gradient(ellipse 90% 70% at 50% 40%, #14101f, #05030a 76%); }
+.rs-glow { position: absolute; left: 50%; top: 62%; width: 90vmin; height: 90vmin;
+  transform: translate(-50%, -50%); opacity: .55;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c) 34%, transparent), transparent 62%);
+  filter: blur(10px); }
+.rs-aura { position: absolute; left: 50%; bottom: 0; width: 60%; height: 86%;
+  transform: translateX(-50%); opacity: 0;
+  background: radial-gradient(ellipse 50% 60% at 50% 78%, color-mix(in srgb, var(--c) 42%, transparent), transparent 70%);
+  filter: blur(6px); }
+
+/* ── Le squelette ──────────────────────────────────────────────────────── */
+.rs-frame { position: absolute; left: 50%; bottom: 3%; height: 86%;
+  transform: translateX(-50%); contain: layout paint; }
+.rg { position: absolute; inset: 0; }
+/* le corps est posé sur le sol : les pieds restent au même endroit */
+.rg-body { filter: drop-shadow(0 1.2rem 2rem rgba(0,0,0,.55)); }
+.rg-body { position: absolute; inset: 0; transform-origin: 50% 92%;
+  will-change: transform; }
+.rg-p { position: absolute; display: block; background-repeat: no-repeat;
+  background-size: 100% 100%; will-change: transform; }
+.rg-tete, .rg-bras_g, .rg-bras_d, .rg-jambes { transition: none; }
+
+/* ── Effets : « cell animation » calculée par le moteur ─────────────────── */
+.rs-parts { position: absolute; inset: 0; opacity: 0; animation: rs-fade 5200ms ease forwards; }
+.rs-parts i { position: absolute; left: 50%; bottom: 18%; width: 3px; height: 3px; border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 85%, #fff);
+  box-shadow: 0 0 8px var(--c);
+  animation: rs-spark 1400ms linear infinite;
+  animation-delay: calc(var(--i) * 70ms); }
+.rs-parts i:nth-child(1)  { --i: 0; --dx: -12rem; }
+.rs-parts i:nth-child(2)  { --i: 1; --dx:  10rem; }
+.rs-parts i:nth-child(3)  { --i: 2; --dx:  -6rem; }
+.rs-parts i:nth-child(4)  { --i: 3; --dx:  14rem; }
+.rs-parts i:nth-child(5)  { --i: 4; --dx:  -16rem; }
+.rs-parts i:nth-child(6)  { --i: 5; --dx:   4rem; }
+.rs-parts i:nth-child(7)  { --i: 6; --dx:  18rem; }
+.rs-parts i:nth-child(8)  { --i: 7; --dx:  -9rem; }
+.rs-parts i:nth-child(9)  { --i: 8; --dx:   6rem; }
+.rs-parts i:nth-child(10) { --i: 9; --dx: -19rem; }
+.rs-parts i:nth-child(11) { --i: 10; --dx:  12rem; }
+.rs-parts i:nth-child(12) { --i: 11; --dx:  -3rem; }
+.rs-parts i:nth-child(13) { --i: 12; --dx:  16rem; }
+.rs-parts i:nth-child(14) { --i: 13; --dx:  -13rem; }
+.rs-parts i:nth-child(15) { --i: 14; --dx:   2rem; }
+.rs-parts i:nth-child(16) { --i: 15; --dx:  20rem; }
+.rs-parts i:nth-child(17) { --i: 16; --dx:  -7rem; }
+.rs-parts i:nth-child(18) { --i: 17; --dx:   9rem; }
+@keyframes rs-spark {
+  0% { opacity: 0; transform: translate(0, 0) scale(.4); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), -26rem) scale(1.1); }
+}
+@keyframes rs-fade { 0% { opacity: 0; } 30% { opacity: 1; } 85% { opacity: .8; } 100% { opacity: 0; } }
+
+/* onde de choc, déclenchée par JS à l'impact */
+.rs-shock { position: absolute; left: 50%; bottom: 20%; width: 8vmin; height: 8vmin; border-radius: 50%;
+  transform: translate(-50%, 50%) scale(0); opacity: 0;
+  border: 3px solid color-mix(in srgb, var(--c) 85%, #fff);
+  box-shadow: 0 0 3rem var(--c); }
+.rscene.hit .rs-shock { animation: rs-shock 900ms cubic-bezier(.1,.8,.2,1) forwards; }
+@keyframes rs-shock {
+  0% { opacity: 1; transform: translate(-50%, 50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 50%) scale(14); }
+}
+
+/* fissures du sol (coup au sol) */
+.rs-crack { position: absolute; left: 50%; bottom: 12%; width: 0; height: 0; opacity: 0; display: none; }
+.arch-slam .rs-crack { display: block; }
+.rscene.hit .rs-crack { opacity: 1; }
+.rs-crack i { position: absolute; left: 0; top: 0; width: .5rem; height: 34vmax; transform-origin: 50% 0;
+  background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--c) 70%, #000) 40%, transparent 92%);
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); opacity: .85;
+  transform: scaleY(0); transition: transform 420ms cubic-bezier(.2,1,.3,1); }
+.rscene.hit .rs-crack i { transform: scaleY(1); }
+.rs-crack i:nth-child(1) { rotate: 8deg; }
+.rs-crack i:nth-child(2) { rotate: 46deg; }
+.rs-crack i:nth-child(3) { rotate: 84deg; }
+.rs-crack i:nth-child(4) { rotate: 118deg; }
+.rs-crack i:nth-child(5) { rotate: 152deg; }
+.rs-crack i:nth-child(6) { rotate: 196deg; }
+.rs-crack i:nth-child(7) { rotate: 238deg; }
+.rs-crack i:nth-child(8) { rotate: 286deg; }
+.rs-crack i:nth-child(9) { rotate: 330deg; }
+
+/* flash + négatif */
+.rs-flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 8; }
+.rscene.hit .rs-flash { animation: rs-flash 520ms steps(1) forwards; }
+@keyframes rs-flash { 0% { opacity: .95; } 6% { opacity: .05; } 12% { opacity: .5; } 20%, 100% { opacity: 0; } }
+
+/* le carton du nom */
+.rs-title { position: absolute; left: 8%; bottom: 12%; z-index: 6; opacity: 0; text-align: left;
+  transform: translateY(1rem); transition: opacity 380ms ease, transform 380ms ease; }
+.rs-title.show { opacity: 1; transform: none; }
+.rs-title small { display: block; font-family: var(--font-title); font-weight: 900; font-size: .72rem;
+  letter-spacing: .7em; text-transform: uppercase; color: var(--c); text-shadow: 0 0 1.2rem var(--c); }
+.rs-title b { display: block; font-family: var(--font-deco); font-weight: 700;
+  font-size: clamp(1.8rem, 4.2vw, 3.6rem); line-height: 1.05; color: #fff9ec;
+  text-shadow: 0 0 2rem color-mix(in srgb, var(--c) 80%, transparent), 0 .06em 0 #000; }
+.rs-title span { display: block; margin-top: .3rem; font-family: var(--font-title); font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase; font-size: .68rem; color: #e3c077; }
+
+/* fin : fondu au noir */
+.rs-end { position: absolute; inset: 0; background: #05030a; opacity: 0; z-index: 10;
+  animation: rs-end 5200ms linear forwards; }
+@keyframes rs-end { 0%, 88% { opacity: 0; } 100% { opacity: 1; } }
+
+/* préférences d'accessibilité */
+@media (prefers-reduced-motion: reduce) {
+  .rs-parts i { animation: none; opacity: .5; }
+}

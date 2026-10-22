@@ -10,7 +10,9 @@ import { HEROES } from '../src/data/heroes';
 import { ARCHETYPES, ULT_STYLES, archetypeOf, ultDataOf, ultDuration, ultHTML } from '../src/ui/ultimate';
 import { fullDuration, fullUltHTML } from '../src/ui/ultimate-full';
 import { CINE_MS, CINE_SHOTS, cineDuration, cineHTML } from '../src/ui/ultimate-cine';
-import { ULT_ART, ULT_FRAMES, ULT_VIDEO } from '../src/assets';
+import { ULT_ART, ULT_FRAMES } from '../src/assets';
+import { RIGS } from '../src/data/rigs';
+import { RIG_MS, ULT_POSES, applyPose, poseAt } from '../src/ui/ultimate-rig';
 
 /* ---------- 1. Le carton du nom : 4 styles × 27 héros ---------- */
 const signatures = {
@@ -133,17 +135,24 @@ if (styles.length !== ULT_STYLES.length) throw new Error(`${ULT_STYLES.length} s
 if (heroes.length !== HEROES.length) throw new Error(`${HEROES.length} héros attendus, ${heroes.length} trouvés`);
 // En mode vidéo il n'y a pas de repères : ils n'apparaissent qu'en mode « scène animée ».
 if (acts.length !== 0) throw new Error(`aucun repère attendu en mode vidéo, ${acts.length} trouvés`);
-const vid = document.querySelector('[data-stage] .cvid video');
-if (!vid) throw new Error('aucune vidéo montée par défaut');
-const vids = Object.values(ULT_VIDEO);
-if (vids.length !== 10) throw new Error(`${vids.length} vidéos au lieu de 10`);
-// En test, le bundler renvoie un chemin ; en production, la vidéo est intégrée
-// dans la page unique (data:video/webm). On vérifie qu'il y a bien un fichier vidéo.
-for (const v of vids) {
-  if (!v.endsWith('.webm') && !v.startsWith('data:video/webm')) throw new Error(`source vidéo inattendue : ${v.slice(0, 40)}`);
+const rigScene = document.querySelector('[data-stage] .rscene');
+if (!rigScene) throw new Error('aucun squelette monté par défaut');
+if (document.querySelectorAll('[data-stage] .rg-p').length !== 5) throw new Error('5 morceaux attendus par héros');
+const rigged = Object.keys(RIGS).length;
+console.log(`Squelettes 2D · ${rigged} héros découpés · ${Object.keys(ULT_POSES).length} chorégraphies`);
+if (rigged > 2) {
+  // toutes les chorégraphies produisent une pose valide à 20 instants
+  for (const [arch, keys] of Object.entries(ULT_POSES)) {
+    for (let i = 0; i <= 20; i++) {
+      const p = poseAt(keys, i / 20);
+      for (const [k, v] of Object.entries(p)) if (!Number.isFinite(v)) throw new Error(`pose invalide ${arch}.${k}`);
+    }
+  }
+  const el = document.querySelector<HTMLElement>('[data-stage] .rg')!;
+  applyPose(el, poseAt(ULT_POSES.slam!, 0.54));
+  console.log(`Chorégraphies vérifiées à 0 %, 5 %, … 100 % · impact à ${RIG_MS} ms`);
 }
 
-// On bascule en mode « scène animée » : les 7 plans doivent se monter.
 (document.querySelector('[data-mode="cine"]') as HTMLElement).dispatchEvent(new window.Event('click'));
 if (document.querySelectorAll('[data-stage] .ca-shot').length !== 7) throw new Error('7 plans attendus dans le DOM');
 
@@ -152,7 +161,6 @@ if (document.querySelectorAll('[data-stage] .ca-shot').length !== 7) throw new E
 const card = document.querySelector('[data-stage] .ult');
 if (!card) throw new Error('le mode révélation ne monte rien');
 
-console.log(`Vidéos · ${vids.length} fichiers WebM intégrés · ${(vids.reduce((a, v) => a + v.length, 0) / 1e6).toFixed(1)} Mo`);
 console.log(`\nLaboratoire monté · ${modes.length} modes · ${styles.length} styles · ${heroes.length} héros · ${acts.length} repères`);
 console.log(`${n} cartons + ${f} scènes continues + ${c} cinématiques · aucune valeur invalide · DOM réel`);
 process.exit(0);
