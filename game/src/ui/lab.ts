@@ -92,6 +92,7 @@ export function mountLab(): void {
   let heroId = HEROES[0]!.id;
   let timer = 0;
   let loop = 0;
+  let runId = 0;
 
   const stage = root.querySelector<HTMLElement>('[data-stage]')!;
   const info = root.querySelector<HTMLElement>('[data-info]')!;
@@ -108,6 +109,7 @@ export function mountLab(): void {
 
   /** Remplit la barre de progression + met en avant l'acte en cours. */
   const runProgress = (dur: number, on: boolean): void => {
+    const me = ++runId;
     const fill = progEl.querySelector<HTMLElement>('i')!;
     progEl.style.opacity = on ? '1' : '0';
     actsEl.style.opacity = on ? '1' : '0';
@@ -117,10 +119,11 @@ export function mountLab(): void {
     if (on) {
       const t0 = performance.now();
       const tick = (): void => {
+        if (me !== runId) return;
         const p = Math.min(100, ((performance.now() - t0) / dur) * 100);
         actsEl.querySelectorAll<HTMLElement>('[data-at]').forEach((m) =>
           m.classList.toggle('past', Number(m.dataset.at) <= p));
-        if (p < 100 && progEl.style.opacity === '1') raf(tick);
+        if (p < 100) raf(tick);
       };
       raf(tick);
     }
@@ -244,6 +247,24 @@ export function mountLab(): void {
 
   actsEl.innerHTML = ACTS.map((a) => `<div class="lab-act${a.at === 0 ? ' first' : ''}" data-at="${a.at}" style="left:${a.at}%" title="${a.hint}">
     <b>${a.label}</b><span>${a.at}%</span></div>`).join('');
+
+  document.addEventListener('keydown', (ev) => {
+    const k = ev.key;
+    if (k === ' ') { ev.preventDefault(); play(true); return; }
+    const idIdx = HEROES.findIndex((h) => h.id === heroId);
+    if (k === 'ArrowRight' || k === 'ArrowLeft') {
+      const step = k === 'ArrowRight' ? 1 : -1;
+      heroId = HEROES[(idIdx + step + HEROES.length) % HEROES.length]!.id;
+      drawRoster(); drawInfo(); play();
+    }
+    if (k === 'ArrowDown' || k === 'ArrowUp') {
+      const ids = mode === 'full' ? FULL_STYLES : ULT_STYLES.map((x) => x.id);
+      const si = Math.max(0, ids.indexOf(style));
+      const step = k === 'ArrowDown' ? 1 : -1;
+      style = ids[(si + step + ids.length) % ids.length]!;
+      drawStyles(); drawInfo(); play();
+    }
+  });
 
   drawModes();
   drawStyles();
