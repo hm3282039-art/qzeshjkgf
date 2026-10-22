@@ -1,4 +1,4 @@
-import { HEROES, MAX_STARS, type HeroDef, type Rarity } from './heroes';
+import { HEROES, type HeroDef, type Rarity } from './heroes';
 
 /**
  * Autel d'invocation (façon gacha MLA) : règles pures, sans état.
@@ -22,7 +22,7 @@ export const ITEMS: Record<ItemId, { name: string; amount: number; text: string 
 export const MAX_REFUND: Record<Exclude<Rarity, 'R'>, number> = { SSR: 12000, SR: 5000 };
 
 export type PullResult =
-  | { kind: 'hero'; rarity: Rarity; hero: HeroDef; isNew: boolean; stars: number; refundGold: number }
+  | { kind: 'hero'; rarity: Rarity; hero: HeroDef; isNew: boolean; stars: number; refundGold: number; dupe?: boolean }
   | { kind: 'item'; rarity: 'R'; item: ItemId };
 
 export const SUMMON_POOL = {
@@ -45,10 +45,11 @@ export function rollRarity(pity: number, minSR: boolean, rnd: () => number): Rar
  */
 export function performSummon(
   count: number,
-  state: { heroes: Record<string, number>; pity: number },
+  state: { heroes: Record<string, number>; dupes?: Record<string, number>; pity: number },
   rnd: () => number = Math.random,
-): { results: PullResult[]; heroes: Record<string, number>; pity: number } {
+): { results: PullResult[]; heroes: Record<string, number>; dupes: Record<string, number>; pity: number } {
   const heroes = { ...state.heroes };
+  const dupes = { ...(state.dupes ?? {}) };
   let pity = state.pity;
   const results: PullResult[] = [];
   let gotSR = false;
@@ -63,11 +64,10 @@ export function performSummon(
     const pool = SUMMON_POOL[rarity];
     const hero = pool[Math.floor(rnd() * pool.length)]!;
     const cur = heroes[hero.id];
-    let refundGold = 0;
+    // AUCUNE fusion automatique : un doublon part en réserve au Sanctuaire.
     if (cur === undefined) heroes[hero.id] = hero.stars;
-    else if (cur < MAX_STARS) heroes[hero.id] = cur + 1;
-    else refundGold = MAX_REFUND[rarity];
-    results.push({ kind: 'hero', rarity, hero, isNew: cur === undefined, stars: heroes[hero.id]!, refundGold });
+    else dupes[hero.id] = (dupes[hero.id] ?? 0) + 1;
+    results.push({ kind: 'hero', rarity, hero, isNew: cur === undefined, stars: heroes[hero.id]!, refundGold: 0, dupe: cur !== undefined });
   }
-  return { results, heroes, pity };
+  return { results, heroes, dupes, pity };
 }

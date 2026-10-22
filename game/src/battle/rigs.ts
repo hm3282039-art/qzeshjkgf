@@ -44,7 +44,7 @@ export interface RigDef {
   style: 'heavy' | 'fast' | 'claw' | 'bow' | 'cast' | 'light';
 }
 
-export const RIGS: Record<TextureKey, RigDef> = {
+const RIGS_BASE: Record<string, RigDef> = {
   hero_kael: {
     hip: [0.53, 0.6], neck: [0.52, 0.22], head: [0.52, 0.12], headR: 0.1, spineTop: 0.3, legSplit: 0.52,
     style: 'heavy',
@@ -368,6 +368,32 @@ export const RIGS: Record<TextureKey, RigDef> = {
     ],
   },
 };
+/**
+ * Les recrues de la v1.5 réutilisent les squelettes existants : le rig décrit
+ * la SILHOUETTE (hanches, épaules, bras, pans de tissu), pas le dessin. On clone
+ * donc une silhouette de même famille (lourd, archer, mage, dagues) et on
+ * ajuste les proportions pour que chaque nouveau héros ait sa démarche.
+ */
+const RIG_CLONES: Record<string, { base: string; tweak?: Partial<RigDef> }> = {
+  hero_bran:    { base: 'hero_thorne' },
+  hero_nell:    { base: 'hero_sylvaine' },
+  hero_oskar:   { base: 'hero_kael' },
+  hero_sable:   { base: 'hero_lyra' },
+  hero_ilse:    { base: 'hero_mira' },
+  hero_rook:    { base: 'hero_vaelen' },
+  hero_vesper:  { base: 'hero_aldric' },
+  hero_noktis:  { base: 'hero_corvin' },
+  hero_aurore:  { base: 'hero_pyrrha' },
+  hero_zephyr:  { base: 'hero_vespera' },
+};
+
+for (const [id, def] of Object.entries(RIG_CLONES)) {
+  const base = RIGS_BASE[def.base];
+  if (base) RIGS_BASE[id] = { ...base, ...def.tweak };
+}
+
+export const RIGS = RIGS_BASE as Record<TextureKey, RigDef>;
+
 
 /** Délai (s) entre le début d'une attaque de base et l'impact : synchronisé avec les clips de UnitView. */
 const STRIKE: Record<RigDef['style'], number> = { heavy: 0.26, fast: 0.15, claw: 0.23, bow: 0.22, cast: 0.18, light: 0.18 };

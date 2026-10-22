@@ -11,6 +11,8 @@ export type TextureKey =
   | 'hero_vaelen' | 'hero_sylvaine' | 'hero_pyrrha'
   | 'hero_orlan' | 'hero_vespera' | 'hero_gorm'
   | 'hero_mira' | 'hero_corvin' | 'hero_elara'
+  | 'hero_bran' | 'hero_nell' | 'hero_oskar' | 'hero_sable' | 'hero_ilse'
+  | 'hero_rook' | 'hero_vesper' | 'hero_noktis' | 'hero_aurore' | 'hero_zephyr'
   | 'enemy_ghoul' | 'enemy_skeleton' | 'enemy_boneknight'
   | 'enemy_drowned' | 'enemy_witch' | 'enemy_queen';
 
@@ -124,6 +126,12 @@ export const BONDS: BondDef[] = [
   { a: 'mira', b: 'orlan', name: 'Le Verre et l’Airain', line: '« Tu vises à la cloche. » — « Et je ne rate pas. »', bonus: 0.08 },
   { a: 'corvin', b: 'aldric', name: 'Le Pardon Refusé', line: '« L’aube ne m’a pas voulu. » — « Elle t’attend encore. »', bonus: 0.08 },
   { a: 'elara', b: 'kael', name: 'La Voix et l’Épée', line: '« Chante, et je frappe. » — « Je chante toujours. »', bonus: 0.08 },
+  { a: 'noktis', b: 'morwen', name: 'Le Silence et la Voix', line: '« Tu leur parles encore ? » — « Je leur dis adieu. »', bonus: 0.08 },
+  { a: 'aurore', b: 'seren', name: 'Deux Heures du Jour', line: '« La lune veille. » — « Le soleil tranche. »', bonus: 0.08 },
+  { a: 'zephyr', b: 'sylvaine', name: 'Le Vent et l’Épine', line: '« Cours. » — « Pique. »', bonus: 0.08 },
+  { a: 'bran', b: 'oskar', name: 'La Porte et la Hache', line: '« Tiens la ligne. » — « Je la tiens depuis vingt ans. »', bonus: 0.09 },
+  { a: 'ilse', b: 'mira', name: 'Deux Paires de Mains', line: '« Tu démontes. » — « Je remonte. »', bonus: 0.08 },
+  { a: 'rook', b: 'vaelen', name: 'Les Deux Murs', line: '« Un mur ne suffit pas. » — « Alors faisons-en deux. »', bonus: 0.08 },
 ];
 
 /** Liens actifs pour une équipe donnée. */
@@ -428,6 +436,148 @@ export const HEROES: HeroDef[] = [
       ultimate: { name: 'Chœur des Sept', icon: 'medal', text: 'Sept voix s’élèvent : toute l’équipe récupère 22 % de ses PV et les ennemis sont étourdis 1,1 s.' },
     },
   },
+  /* ====================== Recrues de la Tour (v1.5) ====================== */
+  {
+    id: 'bran', name: 'Bran', title: 'Le Mercenaire Têtu', role: 'Guerrier', rarity: 'R', stars: 3,
+    cls: 'combat',
+    texture: 'hero_bran', height: 238, facesRight: true, color: 0xd08a5a, css: '#d08a5a',
+    quote: '« On me paie pour tenir la ligne. Je tiens. C’est tout. »',
+    lore: 'Bran n’a jamais sauvé de royaume. Il tient des portes, des ponts, des arrière-cours — et il les tient encore quand tout le monde est mort derrière lui.',
+    stats: { hp: 1350, atk: 86, armor: 38, res: 22, interval: 1.25, range: 150, speed: 190, crit: 0.08 },
+    skillCd: 8, skillFirst: 3.5,
+    abilities: {
+      attack: { name: 'Taille de Hache', icon: 'swords', text: 'Frappe large de sa hache ébréchée.' },
+      skill: { name: 'Coup de Maillet', icon: 'anvil', text: 'Assomme l’ennemi devant lui : 150 % d’ATQ et ralentissement 2 s.' },
+      ultimate: { name: 'Charge de la Horde', icon: 'flame', text: 'Fonce dans la ligne : 220 % d’ATQ sur les ennemis traversés et étourdissement 0,7 s.' },
+    },
+  },
+  {
+    id: 'nell', name: 'Nell', title: 'L’Œil des Bois', role: 'Tireur', rarity: 'R', stars: 3,
+    cls: 'nature',
+    texture: 'hero_nell', height: 208, facesRight: true, color: 0x8ad46a, css: '#8ad46a',
+    quote: '« La forêt m’a appris à attendre. Toi, tu es pressé. C’est pour ça que tu vas mourir. »',
+    lore: 'Elle compte les respirations avant de décocher. À douze, la cible tombe. Elle n’a jamais eu besoin d’aller jusqu’à treize.',
+    stats: { hp: 1150, atk: 94, armor: 16, res: 26, interval: 1.05, range: 640, speed: 230, crit: 0.14 },
+    projectile: 'arrow', muzzle: [58, 128], skillCd: 8, skillFirst: 4,
+    abilities: {
+      attack: { name: 'Flèche de Chasse', icon: 'arrow', text: 'Tire une flèche vive sur l’ennemi le plus proche.' },
+      skill: { name: 'Marque du Gibier', icon: 'drop', text: 'Marque l’ennemi le plus faible : 180 % d’ATQ et saignement de 4 s.' },
+      ultimate: { name: 'Pluie de Flèches', icon: 'arrow', text: 'Décoche une volée sur tous les ennemis : 110 % d’ATQ chacun.' },
+    },
+  },
+  {
+    id: 'oskar', name: 'Oskar', title: 'Le Porte-Bouclier', role: 'Tank', rarity: 'R', stars: 3,
+    cls: 'technique',
+    texture: 'hero_oskar', height: 244, facesRight: true, color: 0x9aa3b5, css: '#9aa3b5',
+    quote: '« Un bouclier, ça se répare. Un homme, ça se remplace. Donc je donne le bouclier. »',
+    lore: 'Ancien garde de la porte nord, Oskar a vu tomber trois capitaines. Il a gardé leurs boucliers et cloue une planche neuve chaque fois que l’un se fend.',
+    stats: { hp: 1700, atk: 70, armor: 62, res: 34, interval: 1.55, range: 150, speed: 150, crit: 0.04 },
+    skillCd: 9, skillFirst: 3.5,
+    abilities: {
+      attack: { name: 'Coup de Plat', icon: 'shield', text: 'Frappe avec le plat du bouclier.' },
+      skill: { name: 'Mur de Planches', icon: 'shield', text: 'Se couvre : bouclier de 20 % des PV max et provoque les ennemis 3 s.' },
+      ultimate: { name: 'Rempart de Fortune', icon: 'castle', text: 'Protège toute l’équipe : bouclier de 12 % des PV max et −12 % de dégâts subis pendant 5 s.' },
+    },
+  },
+  {
+    id: 'sable', name: 'Sable', title: 'La Rôdeuse', role: 'Assassin', rarity: 'R', stars: 3,
+    cls: 'obscur',
+    texture: 'hero_sable', height: 206, facesRight: true, color: 0xb08aff, css: '#b08aff',
+    quote: '« Je ne me cache pas. J’attends que tu regardes ailleurs. »',
+    lore: 'Personne ne l’a jamais vue entrer. On la retrouve parfois dans les cuisines, les mains froides, en train de voler du pain et des vies.',
+    stats: { hp: 980, atk: 105, armor: 12, res: 20, interval: 0.95, range: 130, speed: 275, crit: 0.2 },
+    skillCd: 7, skillFirst: 3,
+    abilities: {
+      attack: { name: 'Double Lame', icon: 'swords', text: 'Deux entailles rapides, presque simultanées.' },
+      skill: { name: 'Écorchure', icon: 'moon', text: 'Se glisse derrière l’ennemi le plus faible : 190 % d’ATQ.' },
+      ultimate: { name: 'Exécution', icon: 'drop', text: 'Frappe l’ennemi le plus faible pour 320 % d’ATQ. Les cibles sous 25 % de PV subissent le double.' },
+    },
+  },
+  {
+    id: 'ilse', name: 'Ilse', title: 'L’Ingénieure de Siège', role: 'Soutien', rarity: 'SR', stars: 4,
+    cls: 'technique',
+    texture: 'hero_ilse', height: 222, facesRight: true, color: 0x6ad8ff, css: '#6ad8ff',
+    quote: '« Rien ne casse vraiment. Ça se démonte, voilà tout. »',
+    lore: 'Elle a remplacé sa main gauche par un étau et son œil droit par une lunette. Elle répare les vivants avec la même patience qu’elle met à démonter les machines de guerre.',
+    stats: { hp: 1450, atk: 88, armor: 30, res: 40, interval: 1.3, range: 640, speed: 160, crit: 0.06 },
+    projectile: 'spark', muzzle: [54, 150], skillCd: 8, skillFirst: 3,
+    abilities: {
+      attack: { name: 'Tir de Rivet', icon: 'bolt', text: 'Envoie un rivet chauffé à blanc.' },
+      skill: { name: 'Réparation', icon: 'gear', text: 'Répare l’allié le plus faible : 18 % de ses PV max et bouclier de 8 %.' },
+      ultimate: { name: 'Bombardement', icon: 'anvil', text: 'Trois obus tombent sur les zones les plus denses : 130 % d’ATQ et ralentissement.' },
+    },
+  },
+  {
+    id: 'rook', name: 'Rook', title: 'Le Briseur de Lignes', role: 'Tank', rarity: 'SR', stars: 4,
+    cls: 'combat',
+    texture: 'hero_rook', height: 262, facesRight: true, color: 0xff5a4a, css: '#ff5a4a',
+    quote: '« Les murs tombent. Les lignes tombent. Moi, je reste debout. »',
+    lore: 'Il portait la porte de la caserne sur le dos quand il a chargé. Depuis, c’est un bouclier, et personne n’a osé lui demander de la rendre.',
+    stats: { hp: 2350, atk: 78, armor: 76, res: 30, interval: 1.5, range: 155, speed: 140, crit: 0.05 },
+    skillCd: 9, skillFirst: 4,
+    abilities: {
+      attack: { name: 'Bélier', icon: 'anvil', text: 'Frappe avec le bord de sa porte-bouclier.' },
+      skill: { name: 'Coup de Bouclier', icon: 'shield', text: 'Étourdis la cible 1 s et inflige 140 % d’ATQ.' },
+      ultimate: { name: 'Mur de Fer', icon: 'castle', text: 'Provoque tous les ennemis 4 s, gagne un bouclier de 35 % des PV max et frappe à 160 % d’ATQ autour de lui.' },
+    },
+  },
+  {
+    id: 'vesper', name: 'Vesper', title: 'Le Chantre de l’Aube', role: 'Mage', rarity: 'SR', stars: 4,
+    cls: 'lumiere',
+    texture: 'hero_vesper', height: 224, facesRight: true, color: 0xfff0c0, css: '#fff0c0',
+    quote: '« Je chante faux. Les morts, eux, n’ont jamais osé me le dire. »',
+    lore: 'Le dernier chantre de la nef haute. Il a vu l’aube se lever mille fois et n’a jamais cessé de la chanter, même quand elle a cessé de venir.',
+    stats: { hp: 1380, atk: 98, armor: 20, res: 44, interval: 1.35, range: 640, speed: 150, crit: 0.07 },
+    projectile: 'light', muzzle: [50, 150], skillCd: 9, skillFirst: 3.5,
+    abilities: {
+      attack: { name: 'Note Claire', icon: 'sun', text: 'Projette une note de lumière qui cherche sa cible.' },
+      skill: { name: 'Hymne', icon: 'heart', text: 'Soigne toute l’équipe de 10 % de ses PV max et dissipe les altérations.' },
+      ultimate: { name: 'Lumière Blanche', icon: 'medal', text: 'Éblouit tous les ennemis : 190 % d’ATQ et ralentissement 2,5 s.' },
+    },
+  },
+  {
+    id: 'noktis', name: 'Noktis', title: 'Le Bourreau du Néant', role: 'Guerrier', rarity: 'SSR', stars: 5,
+    cls: 'obscur',
+    texture: 'hero_noktis', height: 278, facesRight: true, color: 0x8a4dff, css: '#8a4dff',
+    quote: '« Je ne tue pas pour la mort. Je tue pour le silence. »',
+    lore: 'Sa faux a été forgée dans une éclipse. On dit qu’elle ne coupe pas les corps mais les noms — et que ceux qu’il moissonne, plus personne ne se souvient d’eux.',
+    stats: { hp: 2500, atk: 124, armor: 58, res: 36, interval: 1.4, range: 160, speed: 175, crit: 0.12 },
+    skillCd: 8, skillFirst: 3.5,
+    abilities: {
+      attack: { name: 'Faux du Néant', icon: 'moon', text: 'Fauche en arc, la lame siffle dans le vide.' },
+      skill: { name: 'Sillon Noir', icon: 'vortex', text: 'Ouvre une entaille : 170 % d’ATQ en arc et saignement de 5 s.' },
+      ultimate: { name: 'Moisson d’Âmes', icon: 'skull', text: 'Fauche toute la ligne ennemie : 260 % d’ATQ chacun, et se soigne de 25 % des dégâts infligés.' },
+    },
+  },
+  {
+    id: 'aurore', name: 'Aurore', title: 'La Vierge de Midi', role: 'Mage', rarity: 'SSR', stars: 5,
+    cls: 'lumiere',
+    texture: 'hero_aurore', height: 236, facesRight: true, color: 0xffd36a, css: '#ffd36a',
+    quote: '« À midi, il n’y a plus d’ombres. Plus d’endroits où se cacher. »',
+    lore: 'Elle n’a jamais connu la nuit. Là où elle passe, le soleil reste haut, et les créatures qui vivent dans les coins commencent à brûler.',
+    stats: { hp: 1560, atk: 132, armor: 18, res: 48, interval: 1.45, range: 640, speed: 145, crit: 0.1 },
+    projectile: 'light', muzzle: [52, 156], skillCd: 9, skillFirst: 3,
+    abilities: {
+      attack: { name: 'Trait de Midi', icon: 'sun', text: 'Un rayon solaire concentré.' },
+      skill: { name: 'Éclat de Zénith', icon: 'flame', text: 'Trace une ligne de feu solaire : 160 % d’ATQ et brûlure.' },
+      ultimate: { name: 'Zénith', icon: 'crown', text: 'Le soleil tombe sur l’arène : 240 % d’ATQ sur tous les ennemis et 18 % de PV rendus aux alliés.' },
+    },
+  },
+  {
+    id: 'zephyr', name: 'Zephyr', title: 'L’Enfant de l’Orage', role: 'Assassin', rarity: 'SSR', stars: 5,
+    cls: 'nature',
+    texture: 'hero_zephyr', height: 214, facesRight: true, color: 0x7ed957, css: '#7ed957',
+    quote: '« Tu m’as déjà vu ? Non. Personne ne m’a jamais vu. »',
+    lore: 'Né dans une bourrasque, il ne touche le sol que pour repartir. Les archers de la Tour ont cessé de tirer : ils ne savent plus où viser.',
+    stats: { hp: 1420, atk: 138, armor: 16, res: 26, interval: 0.9, range: 150, speed: 300, crit: 0.26 },
+    skillCd: 7, skillFirst: 3,
+    abilities: {
+      attack: { name: 'Lame de Vent', icon: 'feather', text: 'Deux entailles si rapides qu’on les entend après.' },
+      skill: { name: 'Danse du Vent', icon: 'bolt', text: 'Traverse trois ennemis : 150 % d’ATQ chacun et gagne de la hâte.' },
+      ultimate: { name: 'Tempête de Lames', icon: 'vortex', text: 'Six frappes tourbillonnantes (100 % d’ATQ) sur des cibles au hasard, puis hâte pendant 6 s.' },
+    },
+  },
+
 ];
 
 export const ENEMIES = {
@@ -506,8 +656,12 @@ export const STAGE_ATK_STEP = 1.28;
 
 export const stageEnemyScale = (stage: StageDef): { hp: number; atk: number } => {
   const base = stage.enemies.reduce((a, e) => a + e.def.stats.hp, 0) || 1;
-  const target = STAGE_HP_BASE * Math.pow(STAGE_HP_STEP, stage.tier / 5);
-  return { hp: target / base, atk: Math.pow(STAGE_ATK_STEP, stage.tier / 5) };
+  // La pente d'origine (×1,44 PV par chapitre) est tenue jusqu'au chapitre 11.
+  // Au-delà elle s'adoucit : sinon les PV ennemis dépassent toute progression possible.
+  const c = stage.tier / 5;
+  const hpFactor = c <= 10 ? Math.pow(STAGE_HP_STEP, c) : Math.pow(STAGE_HP_STEP, 10) * Math.pow(1.05, c - 10);
+  const atkFactor = c <= 10 ? Math.pow(STAGE_ATK_STEP, c) : Math.pow(STAGE_ATK_STEP, 10) * Math.pow(1.03, c - 10);
+  return { hp: (STAGE_HP_BASE * hpFactor) / base, atk: atkFactor };
 };
 
 export interface StageDef {
@@ -625,6 +779,66 @@ export const CHAPTERS: ChapterDef[] = [
     scenes: ['throne', 'throne', 'throne', 'throne', 'throne'],
     stages: ['Le Seuil', 'L’Escalier Sans Fin', 'La Salle des Records', 'Le Dernier Palier', 'L’Œil'],
   },
+  {
+    id: 11, name: 'Les Marches de Cendre',
+    subtitle: 'La cité est tombée ; la cendre, elle, continue de monter.',
+    scenes: ['citadel', 'throne', 'citadel', 'throne', 'citadel'],
+    stages: ['La Cendre Montante', 'Les Escaliers Fumants', 'Le Pont des Morts', 'Les Cloches Fêlées', 'La Marche Haute'],
+  },
+  {
+    id: 12, name: 'Le Labyrinthe des Miroirs',
+    subtitle: 'Chaque mur te renvoie quelqu’un que tu as perdu.',
+    scenes: ['throne', 'throne', 'throne', 'throne', 'throne'],
+    stages: ['Le Seuil Renversé', 'La Galerie des Reflets', 'Le Couloir qui Ment', 'La Salle des Doubles', 'Le Miroir Sans Fond'],
+  },
+  {
+    id: 13, name: 'Les Champs d’Ossements',
+    subtitle: 'On y sème des héros. La récolte est déjà là.',
+    scenes: ['gallows', 'gallows', 'gallows', 'gallows', 'gallows'],
+    stages: ['La Terre Grise', 'Les Silhouettes Couchées', 'Le Champ Haut', 'La Moisson', 'Le Semeur'],
+  },
+  {
+    id: 14, name: 'La Mer de Fer',
+    subtitle: 'Une flotte morte, rouillée, qui n’a jamais touché la rive.',
+    scenes: ['swamp', 'throne', 'swamp', 'throne', 'swamp'],
+    stages: ['Le Quai Rouillé', 'Les Coques Vides', 'La Houle de Fer', 'Le Pont des Ancres', 'Le Vaisseau Amiral'],
+  },
+  {
+    id: 15, name: 'Le Jardin des Pendus',
+    subtitle: 'Les arbres portent des fruits qui balancent.',
+    scenes: ['gallows', 'gallows', 'gallows', 'gallows', 'gallows'],
+    stages: ['L’Allée des Cordes', 'Le Verger Noir', 'La Clairière Sourde', 'Les Fruits Tardifs', 'Le Jardinier'],
+  },
+  {
+    id: 16, name: 'La Bibliothèque Noire',
+    subtitle: 'Des livres écrits avant le monde, reliés avec de la peau.',
+    scenes: ['citadel', 'throne', 'citadel', 'throne', 'citadel'],
+    stages: ['Le Vestibule', 'Les Rayons Infinis', 'La Salle de Lecture', 'L’Index', 'Le Bibliothécaire'],
+  },
+  {
+    id: 17, name: 'Les Forges Célestes',
+    subtitle: 'Les dieux forgeaient ici. Ils ont laissé le feu allumé.',
+    scenes: ['citadel', 'throne', 'citadel', 'throne', 'citadel'],
+    stages: ['Le Seuil de Bronze', 'Les Soufflets Célestes', 'L’Enclume Haute', 'La Coulée', 'Le Forgeron Céleste'],
+  },
+  {
+    id: 18, name: 'Le Désert de Verre',
+    subtitle: 'Le sable a fondu. Il marche sur des tessons.',
+    scenes: ['throne', 'throne', 'throne', 'throne', 'throne'],
+    stages: ['La Dune Fendue', 'Les Éclats', 'Le Grand Poli', 'La Tempête de Verre', 'La Reine de Verre'],
+  },
+  {
+    id: 19, name: 'La Cité des Veuves',
+    subtitle: 'Elles ont enterré tout le monde. Il ne reste qu’elles.',
+    scenes: ['citadel', 'throne', 'citadel', 'throne', 'citadel'],
+    stages: ['Le Portail Noir', 'Les Ruelles Veuves', 'Le Parvis', 'La Maison du Deuil', 'La Mère des Veuves'],
+  },
+  {
+    id: 20, name: 'L’Aube Inverse',
+    subtitle: 'Le soleil se lève à l’envers. C’est la fin, ou le début.',
+    scenes: ['throne', 'throne', 'throne', 'throne', 'throne'],
+    stages: ['Le Dernier Seuil', 'La Nuit Blanche', 'Le Soleil Renversé', 'La Cime', 'L’Aube Inverse'],
+  },
 ];
 
 /** Phrase d’ambiance du niveau (varie selon la position dans le chapitre). */
@@ -667,7 +881,7 @@ const BOSS_BASE: Record<string, UnitDef> = {
   drowned: ENEMIES.drowned, skeleton: ENEMIES.skeleton, spectral: ENEMIES.spectral, ghoul: ENEMIES.ghoul,
 };
 
-const BOSSES: Record<string, UnitDef> = {
+export const BOSSES: Record<string, UnitDef> = {
   warden: ENEMIES.warden, queen: ENEMIES.queen,
   boss_ashknight: mkBoss(BOSS_BASE.boneknight!, {
     id: 'boss_ashknight', name: 'Chevalier de Suie', color: 0xff6a3d, hp: 1.15, atk: 1.1, armor: 1.2, res: 0.8, height: 1.05,
@@ -741,6 +955,86 @@ const BOSSES: Record<string, UnitDef> = {
     id: 'boss_eye', name: 'L’Œil de la Tour', color: 0xff3bd0, hp: 1.6, atk: 1.35, armor: 1.1, res: 1.5, height: 1.5,
     ult: { name: 'Regard de l’Infini', kind: 'rain', cd: 18, first: 16, mult: 2.37 },
   }),
+  boss_cinderwake: mkBoss(ENEMIES.warden, {
+    id: 'boss_cinderwake', name: 'L’Éveil de Cendre', color: 0xe86a3c, hp: 1.55, atk: 1.28, armor: 1.3, res: 1.1, height: 1.3,
+    ult: { name: 'Brasier Montant', kind: 'quake', cd: 18, first: 16, mult: 2.41 },
+  }),
+  boss_ashherald: mkBoss(BOSS_BASE.spectral!, {
+    id: 'boss_ashherald', name: 'Le Héraut de Cendre', color: 0xff8a5c, hp: 1.5, atk: 1.32, armor: 1.1, res: 1.3, height: 1.25,
+    ult: { name: 'Proclamation', kind: 'nova', cd: 18, first: 16, mult: 2.45 },
+  }),
+  boss_mirrorknight: mkBoss(BOSS_BASE.boneknight!, {
+    id: 'boss_mirrorknight', name: 'Le Chevalier de Miroir', color: 0xbfd8ff, hp: 1.6, atk: 1.35, armor: 1.45, res: 1.0, height: 1.3,
+    ult: { name: 'Lame Réfléchie', kind: 'line', cd: 18, first: 16, mult: 2.48 },
+  }),
+  boss_double: mkBoss(BOSS_BASE.ghoul!, {
+    id: 'boss_double', name: 'Le Double', color: 0xd6b3ff, hp: 1.55, atk: 1.3, armor: 1.0, res: 1.2, height: 1.2,
+    ult: { name: 'Duplication', kind: 'summon', cd: 18, first: 16, mult: 2.52 },
+  }),
+  boss_bonelord: mkBoss(BOSS_BASE.skeleton!, {
+    id: 'boss_bonelord', name: 'Le Seigneur des Ossements', color: 0xe8e0c8, hp: 1.7, atk: 1.35, armor: 1.3, res: 1.1, height: 1.35,
+    ult: { name: 'Pluie d’Os', kind: 'rain', cd: 18, first: 16, mult: 2.55 },
+  }),
+  boss_seeder: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_seeder', name: 'Le Semeur', color: 0x9bc46a, hp: 1.6, atk: 1.4, armor: 1.0, res: 1.45, height: 1.25,
+    ult: { name: 'Semence Noire', kind: 'hex', cd: 18, first: 16, mult: 2.58 },
+  }),
+  boss_ironadmiral: mkBoss(ENEMIES.warden, {
+    id: 'boss_ironadmiral', name: 'L’Amiral de Fer', color: 0x8fa6b8, hp: 1.75, atk: 1.38, armor: 1.5, res: 1.0, height: 1.35,
+    ult: { name: 'Bordée', kind: 'line', cd: 18, first: 16, mult: 2.61 },
+  }),
+  boss_hull: mkBoss(ENEMIES.queen, {
+    id: 'boss_hull', name: 'La Coque Vide', color: 0x6e8ca0, hp: 1.7, atk: 1.35, armor: 1.2, res: 1.3, height: 1.4,
+    ult: { name: 'Voie d’Eau', kind: 'nova', cd: 18, first: 16, mult: 2.64 },
+  }),
+  boss_hangman: mkBoss(BOSS_BASE.ghoul!, {
+    id: 'boss_hangman', name: 'Le Pendu', color: 0xc8b48a, hp: 1.65, atk: 1.45, armor: 1.2, res: 1.2, height: 1.3,
+    ult: { name: 'Balancier', kind: 'quake', cd: 18, first: 16, mult: 2.67 },
+  }),
+  boss_orchard: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_orchard', name: 'Le Verger', color: 0x7fa85c, hp: 1.8, atk: 1.38, armor: 1.15, res: 1.4, height: 1.35,
+    ult: { name: 'Récolte', kind: 'summon', cd: 18, first: 16, mult: 2.7 },
+  }),
+  boss_archivist: mkBoss(BOSS_BASE.spectral!, {
+    id: 'boss_archivist', name: 'L’Archiviste', color: 0xd9c8a0, hp: 1.7, atk: 1.45, armor: 1.1, res: 1.6, height: 1.3,
+    ult: { name: 'Décret', kind: 'hex', cd: 18, first: 16, mult: 2.73 },
+  }),
+  boss_ink: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_ink', name: 'L’Encre', color: 0x5b4a8a, hp: 1.75, atk: 1.42, armor: 1.1, res: 1.55, height: 1.35,
+    ult: { name: 'Page Blanche', kind: 'nova', cd: 18, first: 16, mult: 2.76 },
+  }),
+  boss_celforge: mkBoss(ENEMIES.warden, {
+    id: 'boss_celforge', name: 'Le Forgeron Céleste', color: 0xffc24a, hp: 1.55, atk: 1.40, armor: 1.35, res: 1.1, height: 1.35,
+    ult: { name: 'Marteau Divin', kind: 'quake', cd: 18, first: 16, mult: 2.79 },
+  }),
+  boss_anvil: mkBoss(BOSS_BASE.boneknight!, {
+    id: 'boss_anvil', name: 'L’Enclume', color: 0xffa02a, hp: 1.6, atk: 1.42, armor: 1.3, res: 1.2, height: 1.32,
+    ult: { name: 'Coulée', kind: 'line', cd: 18, first: 16, mult: 2.82 },
+  }),
+  boss_glassqueen: mkBoss(ENEMIES.queen, {
+    id: 'boss_glassqueen', name: 'La Reine de Verre', color: 0x9fe8ff, hp: 1.8, atk: 1.48, armor: 1.15, res: 1.6, height: 1.4,
+    ult: { name: 'Éclat Absolu', kind: 'rain', cd: 18, first: 16, mult: 2.85 },
+  }),
+  boss_shard: mkBoss(BOSS_BASE.ghoul!, {
+    id: 'boss_shard', name: 'L’Éclat', color: 0x7fd8ff, hp: 1.75, atk: 1.5, armor: 1.2, res: 1.4, height: 1.3,
+    ult: { name: 'Tranchant', kind: 'line', cd: 18, first: 16, mult: 2.88 },
+  }),
+  boss_widowmother: mkBoss(BOSS_BASE.witch!, {
+    id: 'boss_widowmother', name: 'La Mère des Veuves', color: 0xb83a5a, hp: 1.9, atk: 1.45, armor: 1.2, res: 1.6, height: 1.4,
+    ult: { name: 'Deuil Éternel', kind: 'hex', cd: 18, first: 16, mult: 2.91 },
+  }),
+  boss_mourner: mkBoss(BOSS_BASE.spectral!, {
+    id: 'boss_mourner', name: 'La Pleureuse', color: 0xd86a8a, hp: 1.85, atk: 1.48, armor: 1.1, res: 1.7, height: 1.35,
+    ult: { name: 'Chant Funèbre', kind: 'nova', cd: 18, first: 16, mult: 2.94 },
+  }),
+  boss_invertsun: mkBoss(ENEMIES.queen, {
+    id: 'boss_invertsun', name: 'Le Soleil Renversé', color: 0xffd36a, hp: 1.85, atk: 1.5, armor: 1.35, res: 1.55, height: 1.45,
+    ult: { name: 'Zénith Noir', kind: 'rain', cd: 18, first: 16, mult: 2.97 },
+  }),
+  boss_aurora: mkBoss(ENEMIES.warden, {
+    id: 'boss_aurora', name: 'L’Aube Inverse', color: 0xffe9b0, hp: 1.95, atk: 1.55, armor: 1.45, res: 1.45, height: 1.55,
+    ult: { name: 'Nouveau Monde', kind: 'summon', cd: 18, first: 16, mult: 3.05 },
+  }),
 };
 
 const chapter_bosses: string[][] = [
@@ -754,6 +1048,16 @@ const chapter_bosses: string[][] = [
   ['boss_saltgardener', 'boss_saltcolossus'],
   ['boss_reflection', 'boss_antithesis'],
   ['boss_summit', 'boss_eye'],
+  ['boss_cinderwake', 'boss_ashherald'],
+  ['boss_mirrorknight', 'boss_double'],
+  ['boss_bonelord', 'boss_seeder'],
+  ['boss_ironadmiral', 'boss_hull'],
+  ['boss_hangman', 'boss_orchard'],
+  ['boss_archivist', 'boss_ink'],
+  ['boss_celforge', 'boss_anvil'],
+  ['boss_glassqueen', 'boss_shard'],
+  ['boss_widowmother', 'boss_mourner'],
+  ['boss_invertsun', 'boss_aurora'],
 ];
 
 /** Viviers d’ennemis ordinaires, un par chapitre : le bestiaire s’ouvre avec la profondeur. */
@@ -768,6 +1072,16 @@ const ENEMY_POOL: UnitDef[][] = [
   [ENEMIES.witch, ENEMIES.spectral, ENEMIES.ghoul],
   [ENEMIES.skeleton, ENEMIES.spectral, ENEMIES.drowned, ENEMIES.witch],
   [ENEMIES.warden, ENEMIES.witch, ENEMIES.spectral, ENEMIES.drowned],
+  [ENEMIES.spectral, ENEMIES.warden, ENEMIES.witch, ENEMIES.drowned],
+  [ENEMIES.skeleton, ENEMIES.witch, ENEMIES.spectral, ENEMIES.warden],
+  [ENEMIES.ghoul, ENEMIES.skeleton, ENEMIES.warden, ENEMIES.spectral],
+  [ENEMIES.drowned, ENEMIES.queen, ENEMIES.witch, ENEMIES.spectral],
+  [ENEMIES.ghoul, ENEMIES.spectral, ENEMIES.witch, ENEMIES.warden],
+  [ENEMIES.skeleton, ENEMIES.witch, ENEMIES.spectral, ENEMIES.drowned],
+  [ENEMIES.warden, ENEMIES.skeleton, ENEMIES.witch, ENEMIES.spectral],
+  [ENEMIES.skeleton, ENEMIES.spectral, ENEMIES.witch, ENEMIES.warden],
+  [ENEMIES.ghoul, ENEMIES.drowned, ENEMIES.spectral, ENEMIES.witch],
+  [ENEMIES.warden, ENEMIES.queen, ENEMIES.spectral, ENEMIES.witch],
 ];
 
 
@@ -801,7 +1115,7 @@ export const STAGES: StageDef[] = [
         else if (boss) { /* pas de boss sur les autres étages */ }
         // Puissance conseillée : mesurée par simulation sur une équipe de départ au
         // niveau attendu du chapitre (8, 12, 17… 50). Ce sont de vrais chiffres.
-        const power = Math.round([20_000, 26_000, 32_000, 41_000, 48_000, 61_000, 67_000, 78_000, 95_000, 126_000][ci]! * (1 + k * 0.02));
+        const power = Math.round([20_000, 26_000, 32_000, 41_000, 48_000, 61_000, 67_000, 78_000, 95_000, 126_000, 142_500, 161_000, 182_000, 205_500, 232_000, 262_000, 296_000, 334_500, 378_000, 427_000][ci]! * (1 + k * 0.02));
         out.push({
           id,
           tier: ci * 5 + [0, 0.6, 1.4, 2.2, 3.2][k]!,
@@ -874,8 +1188,26 @@ export const tierBonusPct = (tier: number): number => Math.round((skillMult(tier
 
 export const heroById = (id: string): HeroDef | undefined => HEROES.find((h) => h.id === id);
 
-/** Étoiles maximales d'un héros (5 dorées puis 5 violettes). */
-export const MAX_STARS = 10;
+/**
+ * Étoiles JAUNES maximales (3★ pour un R, 4★ pour un SR, 5★ pour un SSR).
+ * Au-delà commencent les étoiles ROUGES, forgées au Sanctuaire.
+ */
+export const MAX_STARS = 5;
+
+/** Étoiles rouges maximales selon la rareté d'origine. */
+export const MAX_RED: Record<Rarity, number> = { R: 3, SR: 4, SSR: 5 };
+
+/**
+ * Qualité native d'une rareté. Un R, même monté à 5★ + 3✦, vaut 62 % de ses
+ * statistiques de fiche : il reste donc TOUJOURS moins fort qu'un SSR natif
+ * (facteur 1,00). C'est la règle demandée : « sinon ça n'a aucun intérêt ».
+ */
+export const QUALITY: Record<Rarity, number> = { R: 0.62, SR: 1, SSR: 1 };
+
+/** Coût en or d'une étoile jaune (index = étoile visée − 3). */
+export const YELLOW_GOLD = [0, 900, 1800];
+/** Coût en or d'une étoile rouge (index = nombre d'étoiles rouges visé − 1). */
+export const RED_GOLD = [4000, 7000, 11000, 16000, 22000];
 
 /** Un héros de l'équipe et son nombre d'étoiles. */
 export interface TeamMember {
@@ -885,17 +1217,24 @@ export interface TeamMember {
   level: number;
   /** Bonus cumulés de l'équipement (facultatif : 1 partout = aucun objet). */
   gear?: GearBonus;
+  /** Étoiles rouges forgées au Sanctuaire (facultatif). */
+  red?: number;
 }
 
-/** Bonus de statistiques donné par les étoiles au-delà de la base : +10 % PV et ATQ par étoile. */
-export const starMult = (def: HeroDef, stars: number): number => 1 + 0.1 * Math.max(0, stars - def.stars);
+/**
+ * Bonus de statistiques des étoiles : +8 % par étoile jaune au-delà de la base,
+ * +10 % par étoile rouge, le tout multiplié par la qualité native de la rareté.
+ * Un R plafonne donc à 0,62 × 1,46 ≈ 0,91 : sous un SSR natif (1,00), même à fond.
+ */
+export const starMult = (def: HeroDef, stars: number, red = 0): number =>
+  QUALITY[def.rarity] * (1 + 0.08 * Math.max(0, stars - def.stars) + 0.1 * Math.max(0, red));
 
 /**
  * Multicateur global des statistiques d'un héros :
  * étoiles (invocation) × niveau (amélioration) — les deux se cumulent.
  */
-export const heroStatMult = (def: HeroDef, stars: number, level: number): number =>
-  starMult(def, stars) * levelStatMult(level);
+export const heroStatMult = (def: HeroDef, stars: number, level: number, red = 0): number =>
+  starMult(def, stars, red) * levelStatMult(level);
 
 /** Le héros combat-il au corps à corps ? */
 export const isMelee = (def: UnitDef): boolean => !def.projectile;
@@ -917,8 +1256,8 @@ export function formationSlots(defs: readonly HeroDef[]): Array<readonly [number
 }
 
 /** Puissance d'un héros (affichage façon gacha). */
-export const heroPower = (h: HeroDef, stars = h.stars, level = 1, gear?: GearBonus): number => {
-  const m = heroStatMult(h, stars, level);
+export const heroPower = (h: HeroDef, stars = h.stars, level = 1, gear?: GearBonus, red = 0): number => {
+  const m = heroStatMult(h, stars, level, red);
   const skill = skillMult(skillTiers(level));
   const g = gear ?? { hp: 1, atk: 1, armor: 1, res: 1, interval: 1, crit: 0 };
   return Math.round(
@@ -931,4 +1270,4 @@ export const heroPower = (h: HeroDef, stars = h.stars, level = 1, gear?: GearBon
 };
 
 export const teamPower = (team: readonly TeamMember[]): number =>
-  team.reduce((s, m) => s + heroPower(m.def, m.stars, m.level, m.gear), 0);
+  team.reduce((s, m) => s + heroPower(m.def, m.stars, m.level, m.gear, m.red), 0);

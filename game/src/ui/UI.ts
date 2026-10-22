@@ -2,7 +2,7 @@ import { TALKERS } from '../data/npcLines';
 import { ART, GEAR_ART, PORTRAITS, SCENE_BG } from '../assets';
 import { BUILDINGS, type BuildingDef } from '../data/buildings';
 import { SLOT_LIST, SUB_LABEL, itemCss, itemRarity, mainLabel, type Slot } from '../data/items';
-import { BONDS, CAMPAIGN_LENGTH, CHAPTERS, CLASSES, CLASS_LIST, classBeatenBy, classCounts, classMultiplier, CLASS_SYNERGY, HEROES, heroPower, levelStatMult, levelUpCost, skillTiers, starMult, STAGE_PROFILE_TEXT, STAGES, stageProfile, teamPower, tierBonusPct, type HeroClass, type HeroDef, type StageDef, type UnitDef } from '../data/heroes';
+import { BONDS, BOSSES, CAMPAIGN_LENGTH, CHAPTERS, CLASSES, CLASS_LIST, classBeatenBy, classCounts, classMultiplier, CLASS_SYNERGY, ENEMIES, HEROES, MAX_RED, MAX_STARS, QUALITY, heroPower, levelStatMult, levelUpCost, skillTiers, starMult, STAGE_PROFILE_TEXT, STAGES, stageProfile, teamPower, tierBonusPct, type HeroClass, type HeroDef, type StageDef, type UnitDef } from '../data/heroes';
 import type { LabelPosition } from '../scene/HubScene';
 import { store, type PlayerState, type Quality } from '../state/store';
 import { audio } from '../audio/AudioEngine';
@@ -11,12 +11,14 @@ import { FormationScreen } from './Formation';
 import { icon, type IconName } from './icons';
 import { ROLE_ICON } from './roles';
 import { starsHTML } from './stars';
+import { foodStock, planRed, planYellow } from '../data/sanctuaire';
 import { canFullscreen, inIframe, isFullscreen, toggleFullscreen } from './fullscreen';
 import { collectionText, SummonScreen } from './Summon';
 import { towerRewards, towerStage, towerTier } from '../data/tower';
 import { DUMMY_PRESETS, trainingStage } from '../data/training';
 import { FRAMES, TITLES, frameById, type ProfileStats } from '../data/profile';
 import { RANK_POPULATION, leaderboard, rankScore, rankingDay, seasonOf } from '../data/bots';
+import { GUILDS, guildById, guildChat, guildMembers, playerWeekly } from '../data/guilds';
 
 export type UIEvents = {
   labelHover: { id: string; hovered: boolean };
@@ -41,16 +43,17 @@ interface MenuEntry {
 
 const LEFT_MENU: MenuEntry[] = [
   { id: 'summon', label: 'Invocation', icon: 'crystal', isNew: true, description: '' },
-  { id: 'daily', label: 'Connexion', icon: 'gift', badge: true, description: 'Connecte-toi chaque jour pour recevoir des récompenses de plus en plus rares.' },
-  { id: 'achievements', label: 'Succès', icon: 'medal', description: 'Accomplis des exploits pour gagner des titres et des gemmes.' },
-  { id: 'codex', label: 'Codex', icon: 'book', description: "L'encyclopédie du monde : héros, monstres et légendes oubliées." },
+  { id: 'sanctuaire', label: 'Sanctuaire', icon: 'star', isNew: true, description: 'Le seul endroit où les héros gagnent des étoiles.' },
+  { id: 'mail', label: 'Courrier', icon: 'mail', badge: true, description: 'Les messages et récompenses de la Tour.' },
+  { id: 'achievements', label: 'Succès', icon: 'medal', description: 'Accomplis des exploits pour gagner des gemmes.' },
+  { id: 'codex', label: 'Codex', icon: 'book', description: "L'encyclopédie du monde : héros, monstres et boss." },
 ];
 
 const RIGHT_MENU: MenuEntry[] = [
-  { id: 'quests', label: 'Quêtes', icon: 'scroll', badge: '3', description: 'Quêtes quotidiennes et hebdomadaires pour progresser plus vite.' },
-  { id: 'events', label: 'Événements', icon: 'star', isNew: true, description: 'Événements à durée limitée avec des récompenses exclusives.' },
-  { id: 'ranking', label: 'Classement', icon: 'trophy', description: 'Compare ta progression dans la Tour de l’Infini avec les autres joueurs.' },
-  { id: 'shop', label: 'Boutique', icon: 'shop', description: 'Objets, ressources et offres spéciales.' },
+  { id: 'shop', label: 'Boutique', icon: 'shop', description: 'Objets, ressources et offres.' },
+  { id: 'guild', label: 'Guilde', icon: 'banner', description: 'Rejoins une guilde vivante.' },
+  { id: 'ranking', label: 'Classement', icon: 'trophy', description: 'Compare ta progression avec les autres joueurs.' },
+  { id: 'events', label: 'Événements', icon: 'star', description: 'Événements à durée limitée.' },
 ];
 
 const NAV: Array<MenuEntry & { main?: boolean }> = [
@@ -145,6 +148,7 @@ export class UI extends Emitter<UIEvents> {
         <div class="chat-lines"></div>
       </button>
 
+      <button class="nav-toggle interactive" data-action="nav-min" title="Replier la barre">${icon('back')}</button>
       <nav class="bottom-nav">
         ${NAV.map((n) => `
           <button class="nav-btn ${n.main ? 'main' : ''}" data-nav="${n.id}">
@@ -162,6 +166,8 @@ export class UI extends Emitter<UIEvents> {
       <div class="toast"></div>
     `;
 
+    this.root.classList.toggle('nav-min', store.settings.navCompact);
+    this.refreshLocks();
     this.labelsRoot = this.root.querySelector('.labels')!;
     this.modalRoot = this.root.querySelector('.modal-layer')!;
     this.toastEl = this.root.querySelector('.toast')!;
@@ -261,6 +267,7 @@ export class UI extends Emitter<UIEvents> {
 
   private onClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
+    this.refreshLocks();
     const action = target.closest<HTMLElement>('[data-action]')?.dataset.action;
     const menu = target.closest<HTMLElement>('[data-menu]')?.dataset.menu;
     const nav = target.closest<HTMLElement>('[data-nav]')?.dataset.nav;
@@ -268,6 +275,13 @@ export class UI extends Emitter<UIEvents> {
     if (action || menu || nav) audio.click();
     if (action) {
       if (action === 'sound') { store.updateSettings({ muted: !store.settings.muted }); return; }
+      if (action === 'nav-min') {
+        const next = !store.settings.navCompact;
+        store.updateSettings({ navCompact: next });
+        this.root.classList.toggle('nav-min', next);
+        audio.click();
+        return;
+      }
       if (action === 'settings') this.openSettings();
       else if (action === 'battle') this.openCampaign();
       else if (action.startsWith('buy-')) this.toast('La boutique ouvrira bientôt');
@@ -277,15 +291,23 @@ export class UI extends Emitter<UIEvents> {
       return;
     }
     if (menu === 'summon') { this.openSummon(); return; }
+    if (menu === 'mail') { this.openMail(); return; }
+    if (menu === 'achievements') { this.openAchievements(); return; }
+    if (menu === 'codex') { this.openCodex(); return; }
+    if (menu === 'shop') { this.openShop(); return; }
+    if (menu === 'guild') { this.openGuild(); return; }
     if (menu === 'ranking') { this.openRanking(); return; }
     if (menu === 'profile') { this.openProfile(); return; }
+    if (menu === 'sanctuaire') { this.openSanctuaire(); return; }
     if (menu) {
       const m = [...LEFT_MENU, ...RIGHT_MENU].find((x) => x.id === menu);
       if (m) this.openInfo(m.label, m.icon, 'Fonctionnalité', m.description);
       return;
     }
     if (nav) {
+      if (this.deny(nav)) return;
       if (nav === 'city') { this.emit('recenter', undefined); return; }
+      if (nav === 'guild') { this.openGuild(); return; }
       if (nav === 'campaign') { this.openCampaign(); return; }
       if (nav === 'heroes') { this.openHeroes(); return; }
       if (nav === 'tower') { this.openTower(); return; }
@@ -394,7 +416,7 @@ export class UI extends Emitter<UIEvents> {
 
   openBuilding(def: BuildingDef): void {
     if (def.id === 'campaign') { this.openCampaign(); return; }
-    if (def.id === 'sanctuary') { this.openHeroes(); return; }
+    if (def.id === 'sanctuary') { this.openSanctuaire(); return; }
     if (def.id === 'summon') { this.openSummon(); return; }
     const glow = `#${def.glow.toString(16).padStart(6, '0')}aa`;
     this.openModal(`
@@ -688,6 +710,44 @@ export class UI extends Emitter<UIEvents> {
     this.applyFrame();
   }
 
+
+  /** Fiche complète d'un bot : on peut enfin voir qui on affronte. */
+  private openBotProfile(r: ReturnType<typeof leaderboard>[number]): void {
+    const f = frameById(r.frame);
+    const modal = this.openModal(`
+      <div class="bps" style="--c:${f.glow}">
+        <div class="bps-top">
+          <div class="bps-ava" style="--fr:${f.css};--fg:${f.glow}"><img src="${PORTRAITS[r.avatar]}" alt=""/></div>
+          <div class="bps-id">
+            <h2>${r.name}</h2>
+            <div class="bps-title">${icon('medal')} ${r.title}</div>
+            <div class="bps-frame">Cadre : <b>${f.name}</b> · ${f.req}</div>
+          </div>
+          <div class="bps-rank">#${r.rank}<small>/${RANK_POPULATION}</small></div>
+        </div>
+        <div class="bps-stats">
+          <div><small>Niveau</small><b>${r.level}</b></div>
+          <div><small>Puissance</small><b>${fmt(r.power)}</b></div>
+          <div><small>Tour</small><b>${r.floor || '—'}</b></div>
+          <div><small>Tendance</small><b class="${r.trend >= 0 ? 'up' : 'down'}">${r.trend >= 0 ? '+' : ''}${fmt(r.trend)}</b></div>
+        </div>
+        <div class="bps-line">${icon('clock')} ${r.event ?? 'Progresse chaque jour : entraînement, invocations, Tour.'}</div>
+        <div class="bps-team"><div class="cd-sec">Équipe visible</div><div class="bps-team-row">
+          ${[r.avatar, ...HEROES.filter((h) => h.id !== r.avatar).slice(0, 4).map((h) => h.id)].map((id, i) => `
+            <div class="bps-hero"><img src="${PORTRAITS[id]}" alt=""/><span>${HEROES.find((h) => h.id === id)?.name ?? id}</span><small>${i === 0 ? 'Chef d’équipe' : 'Membre'}</small></div>`).join('')}
+        </div></div>
+        <div class="btn-row">
+          <button class="btn" data-defy>${icon('swords')} Défier (amical)</button>
+          <button class="btn dark" data-close>Fermer</button>
+        </div>
+      </div>`, f.glow, true);
+    modal.querySelector('[data-defy]')?.addEventListener('click', () => {
+      audio.play('ult_ready', { vol: 0.5 });
+      this.toast(`${r.name} accepte le défi. Rendez-vous dans l’Arène.`);
+    });
+    modal.querySelector('[data-close]')?.addEventListener('click', () => this.closeModal());
+  }
+
   /* ====================== Classement ====================== */
 
   /**
@@ -705,7 +765,7 @@ export class UI extends Emitter<UIEvents> {
     const { season, dayInSeason } = seasonOf(day);
     const frameCss = (id: string): string => frameById(id).css;
     const rowHTML = (r: typeof rows[number]): string => `
-      <div class="rk-row${r.isPlayer ? ' me' : ''}${r.rank <= 3 ? ' top' + r.rank : ''}" data-row="${r.rank}">
+      <div class="rk-row${r.isPlayer ? ' me' : ''}${r.rank <= 3 ? ' top' + r.rank : ''}" data-row="${r.rank}" data-bot="${r.isPlayer ? '' : r.name}">
         <div class="rk-pos">${r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : r.rank}</div>
         <div class="rk-ava" style="--fr:${frameCss(r.frame)}"><img src="${PORTRAITS[r.avatar]}" alt=""/></div>
         <div class="rk-id">
@@ -719,7 +779,7 @@ export class UI extends Emitter<UIEvents> {
       </div>`;
 
     const podium = rows.slice(0, 3).map((r, i) => `
-      <div class="rk-pod p${i + 1}" style="--c:${frameById(r.frame).glow}">
+      <div class="rk-pod p${i + 1}" style="--c:${frameById(r.frame).glow}" data-bot="${r.name}">
         <div class="rk-ava big" style="--fr:${frameCss(r.frame)}"><img src="${PORTRAITS[r.avatar]}" alt=""/></div>
         <b>${r.name}</b><span>${r.title}</span><em>${fmt(r.power)}</em><small>Tour ${r.floor || '—'}</small>
       </div>`).join('');
@@ -746,6 +806,14 @@ export class UI extends Emitter<UIEvents> {
       else if (row && list) list.scrollTop = Math.max(0, row.offsetTop - list.clientHeight / 2);
     };
     modal.querySelector('[data-jump-me]')?.addEventListener('click', () => { audio.click(); go(); });
+    modal.querySelectorAll<HTMLElement>('[data-bot]').forEach((el) => {
+      if (!el.dataset.bot) return;
+      el.classList.add('clickable');
+      el.addEventListener('click', () => {
+        const r = rows.find((x) => x.name === el.dataset.bot);
+        if (r && !r.isPlayer) { audio.click(); this.openBotProfile(r); }
+      });
+    });
     // Ouvre directement sur la zone du joueur si son rang est bas.
     window.setTimeout(go, 60);
   }
@@ -807,7 +875,7 @@ export class UI extends Emitter<UIEvents> {
             <span class="hd-rar ${pick!.rarity}">${pick!.rarity}</span>
             <h3>${pick!.name}</h3>
             <em>${pick!.title}</em>
-            ${starsHTML(store.starsOf(pick!), 'mini')}
+            ${starsHTML(store.starsOf(pick!), 'mini', store.redOf(pick!))}
             <small>Niv. ${store.levelOf(pick!)} · ${fmt(heroPower(pick!, store.starsOf(pick!), store.levelOf(pick!)))} puissance</small>
           </div>
         </div>
@@ -886,7 +954,7 @@ export class UI extends Emitter<UIEvents> {
   /** Nom des chapitres (source unique : les données de campagne). */
   private static readonly CHAPTER_NAMES: Record<number, string> = Object.fromEntries(CHAPTERS.map((c) => [c.id, c.name]));
 
-  private static readonly ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  private static readonly ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
 
   openCampaign(selectId?: string): void {
     const chapterOf = (id: string): number => Number(id.split('-')[0]) || 1;
@@ -1042,6 +1110,398 @@ export class UI extends Emitter<UIEvents> {
 
   /* ================= Héros ================= */
 
+  /* ================= Déblocage par la campagne (point 12) ================= */
+
+  /** Nombre de niveaux terminés. */
+  private doneCount(): number { return store.campaignDone(); }
+
+  /** Seuil de déblocage d'une fonction (0 = disponible tout de suite). */
+  private static readonly NEED: Record<string, number> = {
+    campaign: 0, city: 0, heroes: 0, bag: 0, tower: 0, ranking: 0, codex: 0, profile: 0,
+    sanctuaire: 5, training: 5, achievements: 10, shop: 10, guild: 15, events: 25,
+  };
+
+  private locked(id: string): boolean { return this.doneCount() < (UI.NEED[id] ?? 0); }
+
+  /** Grise les boutons verrouillés et affiche le cadenas. */
+  private refreshLocks(): void {
+    this.root.querySelectorAll<HTMLElement>('[data-menu],[data-nav]').forEach((b) => {
+      const id = b.dataset.menu ?? b.dataset.nav ?? '';
+      const need = UI.NEED[id] ?? 0;
+      const lock = this.doneCount() < need;
+      b.classList.toggle('locked', lock);
+      let tag = b.querySelector<HTMLElement>('.lock-tag');
+      if (lock && !tag) {
+        tag = document.createElement('span');
+        tag.className = 'lock-tag';
+        tag.textContent = `🔒 ${need}`;
+        b.appendChild(tag);
+      } else if (!lock && tag) tag.remove();
+    });
+  }
+
+  private deny(id: string): boolean {
+    if (!this.locked(id)) return false;
+    const need = UI.NEED[id] ?? 0;
+    audio.close();
+    this.toast(`Verrouillé : termine ${need} niveaux de campagne (${this.doneCount()}/${need})`);
+    return true;
+  }
+
+  /* ================= Courrier ================= */
+
+  private static readonly MAILS = [
+    { id: 'm1', from: 'La Tour', subject: 'Bienvenue dans l’escalier', body: 'Tu as gravi le premier palier. La Tour t’a vu. Prends ça, et continue.', reward: { gems: 200 }, need: 0 },
+    { id: 'm2', from: 'Le Forgeron', subject: 'Une lame pour ton premier sang', body: 'J’ai vu tes hommes tomber au chapitre 1. Tiens, de quoi tenir debout.', reward: { gold: 3000 }, need: 5 },
+    { id: 'm3', from: 'Intendant de Cendrebourg', subject: 'Ration de campagne', body: 'L’énergie manque à tout le monde. Voilà de quoi frapper encore un peu.', reward: { energy: 30 }, need: 10 },
+    { id: 'm4', from: 'La Guilde des Veuves', subject: 'Une place à notre table', body: 'Tu as survécu à dix chapitres. Rejoins une guilde : on ne grimpe pas seul.', reward: { gems: 300 }, need: 25 },
+    { id: 'm5', from: 'L’Œil de la Tour', subject: 'Je te regarde', body: 'Personne n’arrive jusqu’ici. Toi, si. Prends ce qui reste.', reward: { gold: 12000, gems: 500 }, need: 50 },
+  ];
+
+  openMail(): void {
+    const list = UI.MAILS.filter((m) => this.doneCount() >= m.need);
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('mail')}</div>
+      <h2>Courrier</h2>
+      <div class="subtitle">${list.filter((m) => !store.hasFlag('mail:' + m.id)).length} message(s) à récupérer</div>
+      <div class="mail-list">${list.map((m) => {
+        const got = store.hasFlag('mail:' + m.id);
+        const rw = [m.reward.gold ? `${fmt(m.reward.gold)} or` : '', m.reward.gems ? `${fmt(m.reward.gems)} gemmes` : '', m.reward.energy ? `+${m.reward.energy} énergie` : ''].filter(Boolean).join(' · ');
+        return `<div class="mail-item${got ? ' got' : ''}">
+          <div class="mi-from">${m.from}</div>
+          <b>${m.subject}</b>
+          <p>${m.body}</p>
+          <div class="mi-foot"><span>${icon('gift')} ${rw}</span>
+          ${got ? '<em>Récupéré</em>' : `<button class="btn small" data-claim="${m.id}">Récupérer</button>`}</div>
+        </div>`;
+      }).join('')}</div>`, '#d8b45aaa', true);
+    modal.querySelectorAll<HTMLElement>('[data-claim]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const m = UI.MAILS.find((x) => x.id === b.dataset.claim)!;
+        store.grant(m.reward);
+        store.setFlag('mail:' + m.id);
+        audio.play('coins', { vol: 0.7 });
+        this.toast('Récompense récupérée');
+        this.openMail();
+      }),
+    );
+  }
+
+  /* ================= Succès ================= */
+
+  openAchievements(): void {
+    if (this.deny('achievements')) return;
+    const st = this.profileStats();
+    const items = [
+      { id: 'a1', name: 'Premier sang', desc: 'Terminer 1 niveau', cur: st.stagesDone, goal: 1, reward: { gems: 50 } },
+      { id: 'a2', name: 'Marcheur', desc: 'Terminer 25 niveaux', cur: st.stagesDone, goal: 25, reward: { gems: 250 } },
+      { id: 'a3', name: 'Le monde entier', desc: 'Terminer les 100 niveaux', cur: st.stagesDone, goal: 100, reward: { gems: 2000 } },
+      { id: 'a4', name: 'Grimpeur', desc: 'Atteindre l’étage 25 de la Tour', cur: st.towerBest, goal: 25, reward: { gold: 5000 } },
+      { id: 'a5', name: 'Sans fond', desc: 'Atteindre l’étage 60', cur: st.towerBest, goal: 60, reward: { gems: 600 } },
+      { id: 'a6', name: 'Collectionneur', desc: 'Posséder 20 héros', cur: st.collection, goal: 20, reward: { gems: 400 } },
+      { id: 'a7', name: 'Invocateur', desc: 'Faire 100 invocations', cur: st.summons, goal: 100, reward: { gems: 500 } },
+      { id: 'a8', name: 'Vétéran', desc: 'Atteindre le niveau de compte 30', cur: st.level, goal: 30, reward: { gold: 8000 } },
+    ];
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('medal')}</div>
+      <h2>Succès</h2>
+      <div class="subtitle">${items.filter((i) => i.cur >= i.goal && !store.hasFlag('ach:' + i.id)).length} à récupérer · ${items.filter((i) => i.cur >= i.goal).length}/${items.length} accomplis</div>
+      <div class="ach-list">${items.map((i) => {
+        const done = i.cur >= i.goal;
+        const got = store.hasFlag('ach:' + i.id);
+        const pct = Math.min(100, (i.cur / i.goal) * 100);
+        return `<div class="ach-item${done ? ' done' : ''}">
+          <div class="ach-ico">${icon(done ? 'medal' : 'lock')}</div>
+          <div class="ach-txt"><b>${i.name}</b><span>${i.desc}</span>
+            <div class="ach-bar"><i style="width:${pct}%"></i></div>
+            <small>${Math.min(i.cur, i.goal)} / ${i.goal}</small></div>
+          <div class="ach-rw">${i.reward.gold ? `${fmt(i.reward.gold)} or` : `${fmt(i.reward.gems!)} gemmes`}
+          ${got ? '<em>OK</em>' : done ? `<button class="btn small" data-ach="${i.id}">Récupérer</button>` : ''}</div>
+        </div>`;
+      }).join('')}</div>`, '#d8b45aaa', true);
+    modal.querySelectorAll<HTMLElement>('[data-ach]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const i = items.find((x) => x.id === b.dataset.ach)!;
+        store.grant(i.reward);
+        store.setFlag('ach:' + i.id);
+        audio.confirm();
+        this.openAchievements();
+      }),
+    );
+  }
+
+  /* ================= Codex ================= */
+
+  openCodex(): void {
+    const bosses = Object.values(BOSSES).filter((b) => b.id.startsWith('boss_'));
+    let tab: 'heroes' | 'beasts' | 'bosses' = 'heroes';
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('book')}</div>
+      <h2>Codex</h2>
+      <div class="subtitle">Tout ce que la Tour a avalé : ${HEROES.length} héros · ${Object.keys(ENEMIES).length} créatures · ${bosses.length} boss</div>
+      <div class="cx-tabs">
+        <button class="cx-tab on" data-tab="heroes">Héros</button>
+        <button class="cx-tab" data-tab="beasts">Créatures</button>
+        <button class="cx-tab" data-tab="bosses">Boss</button>
+      </div>
+      <div class="cx-body"></div>`, '#8a4dffaa', 'xl');
+    const body = modal.querySelector<HTMLElement>('.cx-body')!;
+    const draw = (): void => {
+      if (tab === 'heroes') {
+        body.innerHTML = `<div class="cx-grid">${HEROES.map((h) => `
+          <div class="cx-card" style="--c:${h.css}">
+            <img src="${PORTRAITS[h.id]}" alt=""/>
+            <div><b>${h.name}</b><span class="sc-rar ${h.rarity}">${h.rarity}</span>
+            <em>${h.title} · ${h.role}</em>
+            <small>${CLASSES[h.cls].name} · ${store.owns(h.id) ? starsHTML(store.starsOf(h), 'mini', store.redOf(h)) : 'non invoqué'}</small></div>
+          </div>`).join('')}</div>`;
+      } else if (tab === 'beasts') {
+        body.innerHTML = `<div class="cx-beasts">${Object.values(ENEMIES).map((e) => `
+          <div class="cx-beast"><b>${e.name}</b><div><span>PV ${fmt(e.stats.hp)}</span><span>ATQ ${fmt(e.stats.atk)}</span><span>Armure ${e.stats.armor}</span><span>Rés. ${e.stats.res}</span></div></div>`).join('')}</div>`;
+      } else {
+        body.innerHTML = `<div class="cx-beasts">${bosses.map((b) => `
+          <div class="cx-beast boss"><b>${b.name}</b>
+            <div><span>Ultime : <em>${b.bossUlt!.name}</em></span><span>${b.bossUlt!.kind}</span></div>
+            <small>${b.bossUlt!.text}</small></div>`).join('')}</div>`;
+      }
+    };
+    modal.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) =>
+      b.addEventListener('click', () => {
+        tab = b.dataset.tab as typeof tab;
+        modal.querySelectorAll('.cx-tab').forEach((x) => x.classList.toggle('on', x === b));
+        audio.hover();
+        draw();
+      }),
+    );
+    draw();
+  }
+
+  /* ================= Boutique ================= */
+
+  openShop(): void {
+    if (this.deny('shop')) return;
+    const offers = [
+      { id: 's1', name: 'Bourse d’or', desc: '3 000 pièces d’or', cost: 120, cur: 'gems', give: { gold: 3000 } },
+      { id: 's2', name: 'Coffre d’or', desc: '12 000 pièces d’or', cost: 400, cur: 'gems', give: { gold: 12000 } },
+      { id: 's3', name: 'Ration d’énergie', desc: '+30 énergie tout de suite', cost: 60, cur: 'gems', give: { energy: 30 } },
+    ];
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('shop')}</div>
+      <h2>Boutique</h2>
+      <div class="subtitle">${fmt(store.player.gems)} gemmes disponibles</div>
+      <div class="shop-grid">${offers.map((o) => `
+        <div class="shop-item">
+          <div class="si-ico">${icon(o.give.gold ? 'coin' : 'crystal')}</div>
+          <b>${o.name}</b><span>${o.desc}</span>
+          <button class="btn small" data-buy="${o.id}">${fmt(o.cost)} gemmes</button>
+        </div>`).join('')}</div>
+      <div class="shop-note">Pour l’instant, tout s’achète avec les gemmes gagnées en jeu. Aucun paiement réel.</div>`, '#d8b45aaa', true);
+    modal.querySelectorAll<HTMLElement>('[data-buy]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const o = offers.find((x) => x.id === b.dataset.buy)!;
+        if (store.player.gems < o.cost) { audio.close(); this.toast('Pas assez de gemmes'); return; }
+        store.grant({ gems: -o.cost });
+        store.grant(o.give);
+        audio.play('coins', { vol: 0.7 });
+        this.toast(`${o.name} acheté`);
+        this.openShop();
+      }),
+    );
+  }
+
+  /* ================= Guilde ================= */
+
+  openGuild(): void {
+    if (this.deny('guild')) return;
+    const g = guildById(store.guild);
+    if (!g) {
+      const list = GUILDS;
+      const modal = this.openModal(`
+        <div class="modal-medal">${icon('banner')}</div>
+        <h2>Guildes</h2>
+        <div class="subtitle">Des guildes vivantes, tenues par de vrais joueurs simulés. Choisis la tienne.</div>
+        <div class="gl-list">${list.map((x) => `
+          <div class="gl-item" style="--c:${x.color}">
+            <div class="gl-emb" style="--c:${x.color}">${x.emblem}</div>
+            <div class="gl-txt"><b>${x.name}</b><span>${x.motto}</span>
+              <small>Niv. ${x.level} · ${x.members}/${x.capacity} membres · ${fmt(x.power)} puissance · min. niv. ${x.minLevel}</small></div>
+            <div class="gl-rank">#${x.rank}<small>mondial</small></div>
+            <button class="btn small" data-join="${x.id}" ${store.player.level < x.minLevel ? 'disabled' : ''}>${store.player.level < x.minLevel ? `Niv. ${x.minLevel}` : 'Rejoindre'}</button>
+          </div>`).join('')}</div>`, '#8a4dffaa', 'xl');
+      modal.querySelectorAll<HTMLElement>('[data-join]').forEach((b) =>
+        b.addEventListener('click', () => {
+          store.joinGuild(b.dataset.join!);
+          audio.confirm();
+          this.toast('Guilde rejointe !');
+          this.openGuild();
+        }),
+      );
+      return;
+    }
+    const members = guildMembers(g.id);
+    const chat = guildChat(g.id);
+    const modal = this.openModal(`
+      <div class="modal-medal" style="--c:${g.color}">${g.emblem}</div>
+      <h2>${g.name}</h2>
+      <div class="subtitle">${g.motto} · niveau ${g.level} · #${g.rank} mondial</div>
+      <div class="gl-head">
+        <div><small>Puissance</small><b>${fmt(g.power)}</b></div>
+        <div><small>Membres</small><b>${g.members}/${g.capacity}</b></div>
+        <div><small>Ma contribution</small><b>${fmt(playerWeekly(store.player.power, store.player.level))}/sem.</b></div>
+        <button class="btn small danger" data-leave>Quitter</button>
+      </div>
+      <div class="gl-cols">
+        <div><div class="cd-sec">Membres</div><div class="gl-members">${members.map((m) => `
+          <div class="gl-mem${m.role === 'Chef' ? ' chief' : ''}">
+            <img src="${PORTRAITS[m.avatar]}" alt=""/>
+            <div><b>${m.name}</b><span class="gl-role r-${m.role.toLowerCase()}">${m.role}</span>
+              <small>Niv. ${m.level} · ${fmt(m.power)}</small></div>
+            <div class="gl-week"><b>${fmt(m.weekly)}</b><small>pts</small></div>
+            <i class="gl-dot${m.online ? ' on' : ''}" title="${m.online ? 'En ligne' : `Vu il y a ${m.seen} h`}"></i>
+          </div>`).join('')}</div></div>
+        <div><div class="cd-sec">Discussion de guilde</div><div class="gl-chat">${chat.map((c) => `
+          <div class="gl-msg ${c.tag}"><b>${c.who}</b><span>${c.text}</span></div>`).join('')}</div></div>
+      </div>`, '#8a4dffaa', 'xl');
+    modal.querySelector('[data-leave]')?.addEventListener('click', () => {
+      store.leaveGuild();
+      audio.close();
+      this.toast('Tu as quitté la guilde');
+      this.openGuild();
+    });
+  }
+
+  /* ================= Le Sanctuaire ================= */
+
+  /**
+   * Sanctuaire : le seul endroit où les héros gagnent des étoiles.
+   * Étoiles jaunes = de la nourriture (doublons) ; étoiles rouges = le endgame
+   * (doublon du même héros, puis sacrifice d'un héros de même rareté).
+   */
+  openSanctuaire(id?: string): void {
+    const owned = HEROES.filter((h) => store.owns(h.id));
+    let sel = id && store.owns(id) ? id : owned.find((h) => store.redOf(h) > 0)?.id ?? owned[0]!.id;
+    const modal = this.openModal('<div class="sanct"></div>', '#ff3b5caa', 'xl');
+    const root = modal.querySelector<HTMLElement>('.sanct')!;
+
+    const card = (h: HeroDef): string => {
+      const on = h.id === sel ? 'on' : '';
+      return `<button class="sc-card ${on}" data-id="${h.id}" style="--c:${h.css}">
+        <img src="${PORTRAITS[h.id]}" alt="" draggable="false"/>
+        <span class="sc-rar ${h.rarity}">${h.rarity}</span>
+        <b>${h.name}</b>
+        ${starsHTML(store.starsOf(h), 'mini', store.redOf(h))}
+      </button>`;
+    };
+
+    const render = (): void => {
+      const st = store.starState();
+      const gold = store.player.gold;
+      const d = HEROES.find((h) => h.id === sel)!;
+      const stars = store.starsOf(d);
+      const red = store.redOf(d);
+      const maxRed = MAX_RED[d.rarity];
+      const yellow = stars < MAX_STARS ? planYellow(st, d, stars) : null;
+      const redPlan = stars >= MAX_STARS ? planRed(st, d, red) : null;
+      const food = foodStock(st, d);
+      const goldOk = (n: number): boolean => gold >= n;
+      const nameOf = (hid: string): string => HEROES.find((h) => h.id === hid)?.name ?? hid;
+      const meltable = HEROES.filter((h) => h.rarity === 'R').reduce((s, h) => s + (st.dupes[h.id] ?? 0), 0);
+
+      const yellowBlock = (() => {
+        if (stars >= MAX_STARS) return '<div class="sc-op done"><b>5★ atteint</b><span>Place aux étoiles rouges.</span></div>';
+        if (!yellow) {
+          return `<div class="sc-op off"><b>Étoile ${stars + 1}★ impossible</b><span>Il faut 1 doublon ${d.rarity} (tu en as ${food.same}) ou 3 doublons R (tu en as ${food.r}).</span></div>`;
+        }
+        const cost = yellow.dupes.map((x) => `${x.count}× ${nameOf(x.id)}`).join(' + ');
+        return `<button class="sc-op ${goldOk(yellow.gold) ? 'go' : 'off'}" data-op="yellow" ${goldOk(yellow.gold) ? '' : 'disabled'}>
+          <b>Monter ${stars + 1}★ jaune</b>
+          <span>${fmt(yellow.gold)} or · ${cost}</span>
+        </button>`;
+      })();
+
+      const redBlock = (() => {
+        if (stars < MAX_STARS) return `<div class="sc-op off"><b>✦ rouge verrouillée</b><span>Le héros doit d’abord atteindre 5★ jaunes.</span></div>`;
+        if (red >= maxRed) return `<div class="sc-op done"><b>Plafond atteint : ${maxRed}✦</b><span>Un ${d.rarity} ne peut pas aller plus loin.</span></div>`;
+        if (!redPlan) {
+          const why = red === 0
+            ? `Il faut un doublon de ${d.name} (tu en as ${store.dupesOf(d.id)}).`
+            : `Il faut un autre ${d.rarity} 5★ qui a déjà ${red}✦ rouge.`;
+          return `<div class="sc-op off"><b>✦${red + 1} impossible</b><span>${why}</span></div>`;
+        }
+        const sac = redPlan.sacrifice ? `Sacrifie ${nameOf(redPlan.sacrifice)} (5★ ${'✦'.repeat(red)})` : `Consomme 1 doublon de ${d.name}`;
+        return `<button class="sc-op red ${goldOk(redPlan.gold) ? 'go' : 'off'}" data-op="red" ${goldOk(redPlan.gold) ? '' : 'disabled'}>
+          <b>Forger ✦${red + 1} rouge</b>
+          <span>${fmt(redPlan.gold)} or · ${sac}</span>
+        </button>`;
+      })();
+
+      const sac = redPlan?.sacrifice ? HEROES.find((h) => h.id === redPlan.sacrifice) : null;
+
+      root.innerHTML = `
+        <div class="sc-head">
+          <div>
+            <div class="sc-kicker">Autel des âmes</div>
+            <h2>Sanctuaire</h2>
+            <div class="subtitle">Aucune fusion automatique : c’est toi qui montes chaque étoile, ici.</div>
+          </div>
+          <div class="sc-wallet">
+            <span>${icon('coin')} ${fmt(gold)} or</span>
+            <button class="sc-melt" data-op="melt" ${meltable ? '' : 'disabled'}>Fondre les R · ${meltable} → ${fmt(meltable * 300)} or</button>
+          </div>
+        </div>
+        <div class="sc-body">
+          <div class="sc-list">${owned.map(card).join('')}</div>
+          <div class="sc-detail" style="--c:${d.css}">
+            <div class="sc-art"><img src="${ART[d.texture as keyof typeof ART] ?? PORTRAITS[d.id]}" alt=""/></div>
+            <div class="sc-info">
+              <div class="sc-name"><b>${d.name}</b><span class="sc-rar ${d.rarity}">${d.rarity}</span></div>
+              <div class="sc-stars">${starsHTML(stars, '', red)}</div>
+              <div class="sc-meta">Niv. ${store.levelOf(d)} · ${fmt(store.powerOf(d))} puissance · qualité native ×${QUALITY[d.rarity].toFixed(2)}</div>
+              ${d.rarity === 'R' ? '<div class="sc-warn">Un R, même à 5★ + 3✦, reste sous un SSR natif : c’est la règle du Sanctuaire.</div>' : ''}
+              <div class="sc-ops">${yellowBlock}${redBlock}</div>
+              ${sac ? `<div class="sc-sac"><span>Va être sacrifié</span><img src="${PORTRAITS[sac.id]}" alt=""/><b>${sac.name}</b><em>${starsHTML(5, 'mini', red - 1)}</em></div>` : ''}
+              <div class="sc-stock">En réserve : <b>${food.same}</b> doublon(s) ${d.rarity} · <b>${food.r}</b> doublon(s) R · <b>${store.dupesOf(d.id)}</b> doublon(s) de ${d.name}</div>
+            </div>
+          </div>
+        </div>
+        <div class="sc-rules">
+          <b>Les règles, noir sur blanc</b>
+          <ul>
+            <li><em>Étoiles jaunes 3★ → 5★ :</em> 1 doublon de la même rareté, ou 3 doublons R. Les R sont la nourriture de base.</li>
+            <li><em>Étoile rouge ✦1 :</em> un doublon du même héros (le perso une deuxième fois).</li>
+            <li><em>Étoile rouge ✦2 et + :</em> on sacrifie un autre héros de la même rareté qui possède déjà une étoile rouge de moins. Il disparaît définitivement.</li>
+            <li><em>Plafonds :</em> R → 3✦ · SR → 4✦ · SSR → 5✦.</li>
+            <li><em>Qualité native :</em> un R à fond vaut ~91 % d’un SSR natif de base. Un SSR natif garde toujours l’avantage.</li>
+          </ul>
+        </div>`;
+
+      root.querySelectorAll<HTMLElement>('[data-id]').forEach((b) =>
+        b.addEventListener('click', () => { audio.hover(); sel = b.dataset.id!; render(); }),
+      );
+      root.querySelector('[data-op="yellow"]')?.addEventListener('click', () => {
+        const r = store.yellowStar(d.id);
+        if (r.ok) { audio.confirm(); this.toast(`${d.name} passe à ${store.starsOf(d)}★`); }
+        else { audio.close(); this.toast(r.reason ?? 'Impossible'); }
+        render();
+      });
+      root.querySelector('[data-op="red"]')?.addEventListener('click', () => {
+        const r = store.redStar(d.id);
+        if (r.ok) {
+          audio.play('ult_ready', { vol: 0.6 });
+          this.toast(`${d.name} forge sa ✦${store.redOf(d)} rouge${r.sacrificed ? ` (${nameOf(r.sacrificed)} sacrifié)` : ''}`);
+        } else { audio.close(); this.toast(r.reason ?? 'Impossible'); }
+        render();
+      });
+      root.querySelector('[data-op="melt"]')?.addEventListener('click', () => {
+        const r = store.meltRDupes();
+        if (r.count) { audio.play('coins', { vol: 0.7 }); this.toast(`${r.count} doublons R fondus · +${fmt(r.gold)} or`); }
+        else this.toast('Aucun doublon R à fondre');
+        render();
+      });
+    };
+    render();
+  }
+
   openHeroes(selected = HEROES[0]!.id): void {
     const team = store.teamIds;
     const modal = this.openModal(`
@@ -1060,7 +1520,7 @@ export class UI extends Emitter<UIEvents> {
               <span class="hl-rar ${h.rarity}">${h.rarity}</span>
               <span class="hl-cls" style="--cc:${CLASSES[h.cls].css}" title="${CLASSES[h.cls].name} — ${CLASSES[h.cls].motto}">${icon(CLASSES[h.cls].icon)}</span>
               ${team.includes(h.id) ? `<span class="hl-team" title="Dans l’équipe">${icon('swords')}</span>` : ''}
-              <div class="hl-txt"><b>${h.name}</b>${owned ? starsHTML(store.starsOf(h), 'mini') : `<small>${icon('lock')} À invoquer</small>`}</div>
+              <div class="hl-txt"><b>${h.name}</b>${owned ? starsHTML(store.starsOf(h), 'mini', store.redOf(h)) : `<small>${icon('lock')} À invoquer</small>`}</div>
             </button>`;
           }).join('')}
         </div>
@@ -1220,7 +1680,8 @@ export class UI extends Emitter<UIEvents> {
     const owned = store.owns(h.id);
     const stars = store.starsOf(h);
     const lvl = store.levelOf(h);
-    const m = starMult(h, stars) * levelStatMult(lvl);
+    const red = store.redOf(h);
+    const m = starMult(h, stars, red) * levelStatMult(lvl);
     const st = h.stats;
     const g = store.gearOf(h.id);
     const hp = Math.round(st.hp * m * g.hp), atk = Math.round(st.atk * m * g.atk);
@@ -1239,7 +1700,7 @@ export class UI extends Emitter<UIEvents> {
         ${owned ? this.gearSlotsHTML(h) : ''}
         ${owned ? '' : `<div class="hd-lock">${icon('lock')}<b>Pas encore invoqué</b><button class="btn" data-go-summon>${icon('crystal')} Autel d’invocation</button></div>`}</div>
       <div class="hd-info">
-        <div class="hd-top"><span class="hd-rar ${h.rarity}">${h.rarity}</span>${starsHTML(stars, owned ? '' : 'dim')}<span class="hd-role">${icon(ROLE_ICON[h.role])} ${h.role}</span></div>
+        <div class="hd-top"><span class="hd-rar ${h.rarity}">${h.rarity}</span>${starsHTML(stars, owned ? '' : 'dim', store.redOf(h))}<span class="hd-role">${icon(ROLE_ICON[h.role])} ${h.role}</span></div>
         <div class="hd-cls" style="--cc:${CLASSES[h.cls].css}">
           <span class="hc-badge">${icon(CLASSES[h.cls].icon)} ${CLASSES[h.cls].name}</span>
           <span class="hc-motto">${CLASSES[h.cls].motto}</span>

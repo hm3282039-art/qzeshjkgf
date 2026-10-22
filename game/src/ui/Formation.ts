@@ -93,7 +93,7 @@ export class FormationScreen {
           ${k >= 0 ? `<span class="fm-num">${k + 1}</span>` : ''}
           <span class="fm-cls" style="--cc:${CLASSES[h.cls].css}" title="${CLASSES[h.cls].name}">${icon(CLASSES[h.cls].icon)}</span>
           <div class="fm-cname">${icon(ROLE_ICON[h.role])}${h.name.replace('Frère ', '')}</div>
-          ${starsHTML(store.starsOf(h), 'mini')}
+          ${starsHTML(store.starsOf(h), 'mini', store.redOf(h))}
           <small>${fmt(heroPower(h, store.starsOf(h)))}</small>
         </button>`;
       }).join('') + (owned.length < HEROES.length ? `<button class="fm-card more" data-fm="summon">${icon('crystal')}<div class="fm-cname">+${HEROES.length - owned.length} à invoquer</div><small>Autel</small></button>` : '');

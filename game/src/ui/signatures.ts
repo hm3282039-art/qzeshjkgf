@@ -39,6 +39,16 @@ export const SIGNATURES: Record<string, Signature> = {
   mira: { motif: 'gear', motion: 'shatter', phrase: 'Trois balles, trois dettes.', sound: 'crit' },
   corvin: { motif: 'sun', motion: 'ring', phrase: 'L’aube se lève. Elle me doit une réponse.', sound: 'choir' },
   elara: { motif: 'choir', motion: 'bloom', phrase: 'Je ne vois pas la lumière. Je l’entends.', sound: 'choir' },
+  bran: { motif: 'stone', motion: 'shatter', phrase: 'Je tiens la ligne. La ligne, c’est moi.', sound: 'braam' },
+  nell: { motif: 'thorn', motion: 'slash', phrase: 'Tu fais du bruit. C’est déjà trop.', sound: 'cutin' },
+  oskar: { motif: 'wall', motion: 'burst', phrase: 'Passe. Essaie. Je suis payé pour rester.', sound: 'braam' },
+  sable: { motif: 'iron', motion: 'slash', phrase: 'Je n’ai jamais été là.', sound: 'crit' },
+  ilse: { motif: 'gear', motion: 'shatter', phrase: 'Tout se calcule. Même toi.', sound: 'riser' },
+  rook: { motif: 'stone', motion: 'burst', phrase: 'Les murs tombent. Moi, je reste.', sound: 'braam' },
+  vesper: { motif: 'choir', motion: 'wave', phrase: 'Chantez. Je vous écoute tomber.', sound: 'choir' },
+  noktis: { motif: 'void', motion: 'sink', phrase: 'Le néant m’a rendu la politesse.', sound: 'riser' },
+  aurore: { motif: 'sun', motion: 'bloom', phrase: 'La lumière ne pardonne pas.', sound: 'choir' },
+  zephyr: { motif: 'storm', motion: 'slash', phrase: 'Tu n’as pas vu passer l’orage.', sound: 'crit' },
 };
 
 const FALLBACK: Signature = { motif: 'void', motion: 'ring', phrase: 'L’autel a répondu.', sound: 'braam' };

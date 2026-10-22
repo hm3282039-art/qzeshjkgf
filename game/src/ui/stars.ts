@@ -1,17 +1,18 @@
 import { MAX_STARS } from '../data/heroes';
 
 /**
- * Étoiles d'un héros (toujours 5 icônes) : de 1 à 5 étoiles dorées, puis de 6 à 10
- * les étoiles violettes remplacent les dorées une à une (façon gacha).
+ * Étoiles d'un héros : 5 emplacements dorés (remplis jusqu'au rang atteint),
+ * puis les étoiles ROUGES du Sanctuaire, affichées en losanges cramoisis.
+ * Exemple : 4★ + 2✦ → ★★★★☆ ✦✦
  */
-export function starsHTML(stars: number, cls = ''): string {
+export function starsHTML(stars: number, cls = '', red = 0): string {
   const s = Math.max(0, Math.min(MAX_STARS, stars));
-  const purple = Math.max(0, s - 5);
-  const gold = Math.min(5, s) - purple;
+  const r = Math.max(0, Math.min(6, red));
   const out: string[] = [];
-  for (let i = 0; i < 5; i++) {
-    const kind = i < purple ? 'p' : i < purple + gold ? 'g' : 'e';
-    out.push(`<i class="st ${kind}">★</i>`);
+  for (let i = 0; i < MAX_STARS; i++) {
+    out.push(`<i class="st ${i < s ? 'g' : 'e'}">★</i>`);
   }
-  return `<span class="stars ${cls}" title="${s} étoile${s > 1 ? 's' : ''}">${out.join('')}</span>`;
+  for (let i = 0; i < r; i++) out.push('<i class="st r">✦</i>');
+  const title = `${s} étoile${s > 1 ? 's' : ''}${r ? ` · ${r} étoile${r > 1 ? 's' : ''} rouge${r > 1 ? 's' : ''}` : ''}`;
+  return `<span class="stars ${cls}" title="${title}">${out.join('')}</span>`;
 }

@@ -1,5 +1,6 @@
 import { gearBonus, itemScore, makeItem, SLOT_LIST, type GearBonus, type Item, type Slot } from '../data/items';
-import { HEROES, STAGES, heroById, levelUpCost, skillTiers, teamPower, tierProgress, type HeroDef, type TeamMember } from '../data/heroes';
+import { HEROES, MAX_RED, MAX_STARS, STAGES, heroById, heroPower, levelUpCost, skillTiers, teamPower, tierProgress, type HeroDef, type TeamMember } from '../data/heroes';
+import { planRed, planYellow, type StarState } from '../data/sanctuaire';
 import { COST, ITEMS, performSummon, type PullResult } from '../data/summon';
 import { towerRewards } from '../data/tower';
 import { Emitter } from '../utils/Emitter';
@@ -42,6 +43,8 @@ export interface Settings {
   battleSpeed: 1 | 2;
   /** Compteur d'images par seconde. */
   showFps: boolean;
+  /** Barre du bas réduite (icônes seules). */
+  navCompact: boolean;
   /**
    * Plafond d'images par seconde. `0` = aucune limite : le jeu suit l'écran
    * (144 Hz → 144 images/seconde). Utile de le baisser si le PC chauffe.
@@ -78,6 +81,10 @@ export interface SaveData {
   heroes: Roster;
   /** Niveau de chaque héros (1 = base). Aucun plafond. */
   levels: HeroLevels;
+  /** Étoiles rouges forgées au Sanctuaire : identifiant → 0…5. */
+  red: Record<string, number>;
+  /** Doublons en réserve (nourriture du Sanctuaire) : identifiant → quantité. */
+  dupes: Record<string, number>;
   /** Équipe de combat (5 héros max, dans l'ordre choisi). */
   team: string[];
   /** Invocations faites depuis le dernier SSR. */
@@ -91,6 +98,8 @@ export interface SaveData {
   equipped: Record<string, Partial<Record<Slot, string>>>;
   /** Tour de l'Infini : étage courant et record personnel. */
   tower: TowerState;
+  /** Guilde rejointe (identifiant), ou null. */
+  guild: string | null;
 }
 
 export interface TowerState {
@@ -123,10 +132,12 @@ const defaults = (): SaveData => ({
     energyMax: 60,
     energyAt: Date.now(),
   },
-  settings: { quality: 'high', showLabels: true, volume: 0.7, muted: false, battleAuto: true, battleSpeed: 1, showFps: false, fpsCap: 0 },
+  settings: { quality: 'high', showLabels: true, volume: 0.7, muted: false, battleAuto: true, battleSpeed: 1, showFps: false, fpsCap: 0, navCompact: false },
   campaign: {},
   heroes: STARTERS(),
   levels: Object.fromEntries(HEROES.filter((h) => h.starter).map((h) => [h.id, 1])),
+  red: {},
+  dupes: {},
   team: HEROES.filter((h) => h.starter).map((h) => h.id),
   pity: 0,
   summons: 0,
@@ -134,6 +145,7 @@ const defaults = (): SaveData => ({
   inventory: [],
   equipped: {},
   tower: { floor: 1, best: 0 },
+  guild: null,
 });
 
 /** Stockage local sécurisé (certains navigateurs / iframes interdisent localStorage). */
@@ -170,6 +182,8 @@ class Store extends Emitter<StoreEvents> {
           campaign: { ...parsed.campaign },
           heroes,
           levels,
+          red: parsed.red ?? {},
+          dupes: parsed.dupes ?? {},
           team: team.length ? team : base.team,
           pity: parsed.pity ?? 0,
           summons: parsed.summons ?? 0,
@@ -177,6 +191,7 @@ class Store extends Emitter<StoreEvents> {
           inventory: parsed.inventory ?? [],
           equipped: parsed.equipped ?? {},
           tower: { floor: Math.max(1, parsed.tower?.floor ?? 1), best: Math.max(0, parsed.tower?.best ?? 0) },
+          guild: parsed.guild ?? null,
         };
       } catch {
         this.data = defaults();
@@ -215,6 +230,16 @@ class Store extends Emitter<StoreEvents> {
 
   owns(id: string): boolean { return this.data.heroes[id] !== undefined; }
   starsOf(h: HeroDef): number { return this.data.heroes[h.id] ?? h.stars; }
+  /** Étoiles rouges d'un héros (0 s'il n'en a pas). */
+  redOf(h: HeroDef): number { return this.data.red[h.id] ?? 0; }
+  /** Doublons en réserve pour ce héros (nourriture du Sanctuaire). */
+  dupesOf(id: string): number { return this.data.dupes[id] ?? 0; }
+  /** État complet du Sanctuaire (copie, pour les plans de fusion). */
+  starState(): StarState { return { heroes: this.data.heroes, red: this.data.red, dupes: this.data.dupes }; }
+  /** Puissance réelle d'un héros (étoiles + rouges + niveau + équipement). */
+  powerOf(h: HeroDef): number {
+    return heroPower(h, this.starsOf(h), this.levelOf(h), this.gearOf(h.id), this.redOf(h));
+  }
 
   /** Niveau d'un héros (1 s'il n'a jamais été amélioré). */
   levelOf(h: HeroDef): number { return this.data.levels[h.id] ?? 1; }
@@ -289,7 +314,7 @@ class Store extends Emitter<StoreEvents> {
     return this.data.team
       .map((id) => heroById(id))
       .filter((h): h is HeroDef => !!h)
-      .map((def) => ({ def, stars: this.starsOf(def), level: this.levelOf(def), gear: this.gearOf(def.id) }));
+      .map((def) => ({ def, stars: this.starsOf(def), level: this.levelOf(def), gear: this.gearOf(def.id), red: this.redOf(def) }));
   }
 
   /** Objets portés par un héros. */
@@ -366,6 +391,216 @@ class Store extends Emitter<StoreEvents> {
 
   get inventory(): readonly Item[] { return this.data.inventory; }
 
+
+
+  /* ================= Outils d'administration (!) ================= */
+
+  /** Donne tous les héros (niveau 1). */
+  devGiveAll(): void {
+    for (const h of HEROES) {
+      if (this.data.heroes[h.id] === undefined) this.data.heroes[h.id] = h.stars;
+      if (this.data.levels[h.id] === undefined) this.data.levels[h.id] = 1;
+    }
+    this.afterStar();
+  }
+
+  /** Pousse tous les héros au maximum (5★ jaunes + plafond rouge). */
+  devMaxStars(): void {
+    for (const h of HEROES) {
+      if (this.data.heroes[h.id] === undefined) continue;
+      this.data.heroes[h.id] = MAX_STARS;
+      this.data.red[h.id] = MAX_RED[h.rarity];
+    }
+    this.afterStar();
+  }
+
+  /** Ajoute `n` doublons à chaque héros possédé. */
+  devDupes(n: number): void {
+    for (const h of HEROES) {
+      if (this.data.heroes[h.id] === undefined) continue;
+      this.data.dupes[h.id] = (this.data.dupes[h.id] ?? 0) + n;
+    }
+    this.afterStar();
+  }
+
+  /** Monte tous les héros de `n` niveaux. */
+  devLevels(n: number): void {
+    for (const h of HEROES) {
+      if (this.data.heroes[h.id] === undefined) continue;
+      this.data.levels[h.id] = (this.data.levels[h.id] ?? 1) + n;
+    }
+    this.afterStar();
+  }
+
+  /** Débloque la campagne jusqu'au chapitre `ch` inclus. */
+  devUnlockUpTo(ch: number): void {
+    for (const st of STAGES) if (Number(st.id.split('-')[0]) <= ch) this.data.campaign[st.id] = 3;
+    this.persist();
+    this.emit('campaign', this.data.campaign);
+  }
+
+  /** Efface la progression de campagne. */
+  devClearCampaign(): void {
+    this.data.campaign = {};
+    this.persist();
+    this.emit('campaign', this.data.campaign);
+  }
+
+  /** Remet tous les héros à leurs étoiles de base (sans toucher aux niveaux). */
+  devResetStars(): void {
+    for (const h of HEROES) {
+      if (this.data.heroes[h.id] === undefined) continue;
+      this.data.heroes[h.id] = h.stars;
+      this.data.red[h.id] = 0;
+      this.data.dupes[h.id] = 0;
+    }
+    this.afterStar();
+  }
+
+  /** Débloque toute la campagne (100 niveaux à 3 étoiles). */
+  devUnlockAll(): void {
+    for (const st of STAGES) this.data.campaign[st.id] = 3;
+    this.persist();
+    this.emit('campaign', this.data.campaign);
+  }
+
+  /** Fixe l'étage de la Tour. */
+  devTower(floor: number): void {
+    this.data.tower.floor = Math.max(1, floor);
+    this.data.tower.best = Math.max(this.data.tower.best, floor);
+    this.persist();
+  }
+
+  /** Donne tous les objets mythiques de chaque emplacement. */
+  devGear(): void {
+    for (const sl of SLOT_LIST) this.data.inventory.push(makeItem(9, { rarity: 'M', slot: sl.id }));
+    this.persist();
+  }
+
+  /* ================= Le Sanctuaire ================= */
+
+  /**
+   * Monte une étoile jaune. Consomme la nourriture calculée par `planYellow`
+   * (1 doublon de même rareté, ou 3 doublons R) puis l'or. `null` = impossible.
+   */
+  yellowStar(id: string): { ok: boolean; reason?: string } {
+    const def = heroById(id);
+    const stars = this.data.heroes[id];
+    if (!def || stars === undefined) return { ok: false, reason: 'Héros non possédé' };
+    if (stars >= MAX_STARS) return { ok: false, reason: 'Déjà 5 étoiles jaunes' };
+    const plan = planYellow(this.data, def, stars);
+    if (!plan) return { ok: false, reason: 'Pas assez de doublons' };
+    if (this.data.player.gold < plan.gold) return { ok: false, reason: 'Pas assez d’or' };
+    this.data.player.gold -= plan.gold;
+    for (const d of plan.dupes) this.data.dupes[d.id] = (this.data.dupes[d.id] ?? 0) - d.count;
+    this.data.heroes[id] = stars + 1;
+    this.afterStar();
+    return { ok: true };
+  }
+
+  /**
+   * Forge une étoile rouge : ✦1 demande un doublon du héros ; ✦2+ sacrifie un
+   * autre héros de la même rareté qui possède déjà une étoile rouge de moins.
+   */
+  redStar(id: string): { ok: boolean; reason?: string; sacrificed?: string } {
+    const def = heroById(id);
+    const stars = this.data.heroes[id];
+    if (!def || stars === undefined) return { ok: false, reason: 'Héros non possédé' };
+    if (stars < MAX_STARS) return { ok: false, reason: 'Il faut d’abord 5 étoiles jaunes' };
+    const red = this.redOf(def);
+    if (red >= MAX_RED[def.rarity]) return { ok: false, reason: 'Plafond d’étoiles rouges atteint' };
+    const plan = planRed(this.data, def, red);
+    if (!plan) return { ok: false, reason: red === 0 ? 'Il faut un doublon de ce héros' : 'Aucun héros à sacrifier' };
+    if (this.data.player.gold < plan.gold) return { ok: false, reason: 'Pas assez d’or' };
+    this.data.player.gold -= plan.gold;
+    let sacrificed: string | undefined;
+    if (plan.sacrifice) {
+      sacrificed = plan.sacrifice;
+      this.removeHero(plan.sacrifice);
+    } else {
+      this.data.dupes[id] = (this.data.dupes[id] ?? 0) - 1;
+    }
+    this.data.red[id] = red + 1;
+    this.afterStar();
+    return { ok: true, sacrificed };
+  }
+
+  /** Retire définitivement un héros (sacrifice) : équipement rendu, équipe recalculée. */
+  private removeHero(id: string): void {
+    delete this.data.heroes[id];
+    delete this.data.levels[id];
+    delete this.data.red[id];
+    delete this.data.dupes[id];
+    delete this.data.equipped[id];
+    if (this.data.team.includes(id)) {
+      const rest = this.data.team.filter((x) => x !== id);
+      const best = HEROES.filter((h) => this.data.heroes[h.id] !== undefined && !rest.includes(h.id))
+        .sort((a, b) => this.powerOf(b) - this.powerOf(a))[0];
+      if (best) rest.push(best.id);
+      this.data.team = rest.length ? rest : this.data.team.filter((x) => x !== id);
+      this.emit('team', this.data.team);
+    }
+  }
+
+  /** Fond tous les doublons R en or (300 pièces chacun). */
+  meltRDupes(): { count: number; gold: number } {
+    let count = 0;
+    for (const h of HEROES) {
+      if (h.rarity !== 'R') continue;
+      const n = this.data.dupes[h.id] ?? 0;
+      if (n > 0) { count += n; this.data.dupes[h.id] = 0; }
+    }
+    const gold = count * 300;
+    this.data.player.gold += gold;
+    if (count) this.afterStar();
+    return { count, gold };
+  }
+
+  private afterStar(): void {
+    this.refreshPower();
+    this.persist();
+    this.emit('heroes', this.data.heroes);
+    this.emit('player', this.data.player);
+  }
+
+
+  /* ================= Récompenses, drapeaux, guilde ================= */
+
+  /** Un cadeau/message a-t-il déjà été récupéré ? */
+  hasFlag(id: string): boolean { return this.data.gifts.includes(id); }
+
+  /** Marque un cadeau comme récupéré. */
+  setFlag(id: string): void { if (!this.data.gifts.includes(id)) this.data.gifts.push(id); this.persist(); }
+
+  /** Crédite une récompense (or, gemmes, énergie). */
+  grant(res: { gold?: number; gems?: number; energy?: number }): void {
+    const p = this.data.player;
+    if (res.gold) p.gold += res.gold;
+    if (res.gems) p.gems += res.gems;
+    if (res.energy) p.energy = Math.min(p.energyMax, p.energy + res.energy);
+    this.persist();
+    this.emit('player', p);
+  }
+
+  get guild(): string | null { return this.data.guild; }
+
+  joinGuild(id: string): void {
+    this.data.guild = id;
+    this.persist();
+    this.emit('player', this.data.player);
+  }
+
+  leaveGuild(): void {
+    this.data.guild = null;
+    this.persist();
+    this.emit('player', this.data.player);
+  }
+
+  /** Nombre de niveaux de campagne déjà terminés. */
+  campaignDone(): number {
+    return Object.values(this.data.campaign).filter((n) => n > 0).length;
+  }
+
   setTeam(ids: string[]): void {
     const team = ids.filter((id, i) => this.owns(id) && ids.indexOf(id) === i).slice(0, 5);
     if (!team.length) return;
@@ -390,8 +625,9 @@ class Store extends Emitter<StoreEvents> {
     const p = this.data.player;
     if (p.gems < cost) return null;
     p.gems -= cost;
-    const r = performSummon(count, { heroes: this.data.heroes, pity: this.data.pity });
+    const r = performSummon(count, { heroes: this.data.heroes, dupes: this.data.dupes, pity: this.data.pity });
     this.data.heroes = r.heroes;
+    this.data.dupes = r.dupes;
     this.data.pity = r.pity;
     this.data.summons += count;
     for (const res of r.results) {

@@ -38,8 +38,12 @@ export const FRAMES: FrameDef[] = [
   { id: 'azur', name: 'Azur', css: 'linear-gradient(135deg,#165a8a,#8ae8ff,#0a3a5a)', glow: '#6ad8ff', req: 'Atteindre l’étage 20 de la Tour', test: (s) => s.towerBest >= 20 },
   { id: 'pourpre', name: 'Pourpre', css: 'linear-gradient(135deg,#4a1a7a,#c8a0ff,#2a0a4a)', glow: '#a06bff', req: 'Atteindre l’étage 40 de la Tour', test: (s) => s.towerBest >= 40 },
   { id: 'obsidienne', name: 'Obsidienne', css: 'linear-gradient(135deg,#0a0814,#4a3a5a,#000)', glow: '#8a4dff', req: 'Atteindre l’étage 60 de la Tour', test: (s) => s.towerBest >= 60 },
-  { id: 'lumiere', name: 'Lumière', css: 'linear-gradient(135deg,#fff6d8,#ffd36a,#fff)', glow: '#fff2c0', req: 'Posséder les 17 héros', test: (s) => s.collection >= 17 },
+  { id: 'lumiere', name: 'Lumière', css: 'linear-gradient(135deg,#fff6d8,#ffd36a,#fff)', glow: '#fff2c0', req: 'Posséder les 27 héros', test: (s) => s.collection >= 27 },
+  { id: 'diamant', name: 'Diamant', css: 'linear-gradient(135deg,#e8fbff,#9fe8ff,#4aa8d8,#e8fbff)', glow: '#bff2ff', req: 'Terminer le chapitre 10', test: (s) => s.stagesDone >= 50 },
+  { id: 'sang', name: 'Sang de la Tour', css: 'linear-gradient(135deg,#3a0410,#ff3b5c,#8a0a1e,#ff8fa3)', glow: '#ff3b5c', req: 'Terminer le chapitre 15', test: (s) => s.stagesDone >= 75 },
+  { id: 'celeste', name: 'Céleste', css: 'conic-gradient(from 0deg,#fff6d8,#ffd36a,#ffb02a,#fff,#ffd36a,#fff6d8)', glow: '#ffe9b0', req: 'Terminer les 100 niveaux', test: (s) => s.stagesDone >= 100 },
   { id: 'infini', name: 'Infini', css: 'conic-gradient(from 0deg,#ff3b5c,#ffd36a,#7ed957,#6ad8ff,#a06bff,#ff3b5c)', glow: '#ffffff', req: 'Étage 100 de la Tour', test: (s) => s.towerBest >= 100 },
+  { id: 'mythe', name: 'Mythe', css: 'conic-gradient(from 90deg,#ff3bd0,#ffd36a,#6ad8ff,#a06bff,#ff3bd0)', glow: '#ff9cf0', req: 'Étage 150 de la Tour', test: (s) => s.towerBest >= 150 },
 ];
 
 export const frameById = (id: string): FrameDef => FRAMES.find((f) => f.id === id) ?? FRAMES[0]!;
@@ -55,4 +59,6 @@ export const TITLES: TitleDef[] = [
   { id: 'sans_fond', name: 'Sans-Fond', req: 'Étage 50 de la Tour', test: (s) => s.towerBest >= 50 },
   { id: 'collectionneur', name: 'Collectionneur', req: 'Posséder 12 héros', test: (s) => s.collection >= 12 },
   { id: 'legende', name: 'Légende de la Tour', req: 'Étage 100', test: (s) => s.towerBest >= 100 },
+  { id: 'faucheur', name: 'Faucheur d’Aube', req: 'Terminer les 100 niveaux', test: (s) => s.stagesDone >= 100 },
+  { id: 'mythe', name: 'Mythe Vivant', req: 'Étage 150 de la Tour', test: (s) => s.towerBest >= 150 },
 ];

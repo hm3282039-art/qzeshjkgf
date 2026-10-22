@@ -7,6 +7,7 @@ import { SUB_LABEL, itemCss, itemRarity, mainLabel } from '../data/items';
 import type { RewardOutcome } from '../state/store';
 import { Emitter } from '../utils/Emitter';
 import { icon } from './icons';
+import { signatureOf, type Motif } from './signatures';
 
 type HudEvents = {
   ult: number;
@@ -286,22 +287,46 @@ export class BattleHud extends Emitter<HudEvents> {
   }
 
   /** Illustration plein écran du héros qui lance son ultime (façon MLA). */
+  /**
+   * CINÉMATIQUE D'ULTIME (refonte totale).
+   *
+   * Ce n'est plus un bandeau qui glisse : c'est une scène de cinéma.
+   *   1. les barres noires se ferment (lettrage) ;
+   *   2. le sceau du héros s'imprime, le titre de l'ultime se révèle au trait ;
+   *   3. l'illustration entre de biais, contre-jour, avec sa phrase-signature ;
+   *   4. un coup de lame traverse l'écran, flash, puis tout se retire.
+   * Durée : 1,5 s, sans jamais bloquer le combat.
+   */
   cutin(u: Unit): void {
     const h = u.hero;
     if (!h) return;
+    const sig = signatureOf(h);
+    const glyph: Record<Motif, string> = {
+      blade: '⚔', void: '◌', grave: '☩', moon: '☾', bell: '♪', frost: '❄', forge: '⚒', thorn: '❦',
+      flame: '▲', storm: '⚡', stone: '⬢', iron: '✂', choir: '♫', sun: '☀', gear: '⚙', wall: '▣',
+    };
     const el = document.createElement('div');
-    el.className = 'cutin';
+    el.className = 'uc';
     el.style.setProperty('--c', h.css);
     el.innerHTML = `
-      <div class="cutin-rays"></div>
-      <div class="cutin-band"></div>
-      <div class="cutin-lines"></div>
-      <div class="cutin-speed"></div>
-      <img class="cutin-art" src="${ART[h.texture]}" alt="" draggable="false"/>
-      <div class="cutin-text"><small>Ultime</small><b>${h.abilities.ultimate.name}</b><span>${h.name} · ${h.title}</span></div>
-      <div class="cutin-flash"></div>`;
+      <div class="uc-bars"><i></i><i></i></div>
+      <div class="uc-vign"></div>
+      <div class="uc-grain"></div>
+      <div class="uc-seal">${glyph[sig.motif]}</div>
+      <div class="uc-streaks">${'<i></i>'.repeat(9)}</div>
+      <img class="uc-art" src="${ART[h.texture]}" alt="" draggable="false"/>
+      <div class="uc-artshade"></div>
+      <div class="uc-cap">
+        <small>Ultime</small>
+        <b>${h.abilities.ultimate.name}</b>
+        <span>${h.name} · ${h.title}</span>
+        <em>${sig.phrase}</em>
+      </div>
+      <div class="uc-slash"></div>
+      <div class="uc-flash"></div>`;
     this.el.appendChild(el);
-    setTimeout(() => el.remove(), 820);
+    try { audio.play(sig.sound, { vol: 0.75 }); } catch { /* son absent : on continue */ }
+    window.setTimeout(() => el.remove(), 1500);
   }
 
   private onClick(e: MouseEvent): void {

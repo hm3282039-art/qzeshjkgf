@@ -54,6 +54,26 @@ import elaraUrl from './assets/hero_elara.webp';
 import pMiraUrl from './assets/portrait_mira.webp';
 import pCorvinUrl from './assets/portrait_corvin.webp';
 import pElaraUrl from './assets/portrait_elara.webp';
+import branUrl from './assets/hero_bran.webp';
+import pBranUrl from './assets/portrait_bran.webp';
+import nellUrl from './assets/hero_nell.webp';
+import pNellUrl from './assets/portrait_nell.webp';
+import oskarUrl from './assets/hero_oskar.webp';
+import pOskarUrl from './assets/portrait_oskar.webp';
+import sableUrl from './assets/hero_sable.webp';
+import pSableUrl from './assets/portrait_sable.webp';
+import ilseUrl from './assets/hero_ilse.webp';
+import pIlseUrl from './assets/portrait_ilse.webp';
+import rookUrl from './assets/hero_rook.webp';
+import pRookUrl from './assets/portrait_rook.webp';
+import vesperUrl from './assets/hero_vesper.webp';
+import pVesperUrl from './assets/portrait_vesper.webp';
+import noktisUrl from './assets/hero_noktis.webp';
+import pNoktisUrl from './assets/portrait_noktis.webp';
+import auroreUrl from './assets/hero_aurore.webp';
+import pAuroreUrl from './assets/portrait_aurore.webp';
+import zephyrUrl from './assets/hero_zephyr.webp';
+import pZephyrUrl from './assets/portrait_zephyr.webp';
 import type { SceneId, TextureKey } from './data/heroes';
 
 export interface GameTextures {
@@ -88,6 +108,16 @@ export interface GameTextures {
   hero_mira: Texture;
   hero_corvin: Texture;
   hero_elara: Texture;
+  hero_bran: Texture;
+  hero_nell: Texture;
+  hero_oskar: Texture;
+  hero_sable: Texture;
+  hero_ilse: Texture;
+  hero_rook: Texture;
+  hero_vesper: Texture;
+  hero_noktis: Texture;
+  hero_aurore: Texture;
+  hero_zephyr: Texture;
   enemy_ghoul: Texture;
   enemy_skeleton: Texture;
   enemy_boneknight: Texture;
@@ -128,6 +158,16 @@ const MANIFEST: Record<keyof GameTextures, string> = {
   hero_mira: miraUrl,
   hero_corvin: corvinUrl,
   hero_elara: elaraUrl,
+  hero_bran: branUrl,
+  hero_nell: nellUrl,
+  hero_oskar: oskarUrl,
+  hero_sable: sableUrl,
+  hero_ilse: ilseUrl,
+  hero_rook: rookUrl,
+  hero_vesper: vesperUrl,
+  hero_noktis: noktisUrl,
+  hero_aurore: auroreUrl,
+  hero_zephyr: zephyrUrl,
 };
 
 /** Adresses des illustrations utilisées par l'interface HTML (fiches de héros, cartes de combat). */
@@ -155,6 +195,16 @@ export const ART: Record<TextureKey, string> = {
   hero_mira: miraUrl,
   hero_corvin: corvinUrl,
   hero_elara: elaraUrl,
+  hero_bran: branUrl,
+  hero_nell: nellUrl,
+  hero_oskar: oskarUrl,
+  hero_sable: sableUrl,
+  hero_ilse: ilseUrl,
+  hero_rook: rookUrl,
+  hero_vesper: vesperUrl,
+  hero_noktis: noktisUrl,
+  hero_aurore: auroreUrl,
+  hero_zephyr: zephyrUrl,
 };
 
 /** Décor du chapitre 1 (fond de la carte de campagne). */
@@ -193,6 +243,17 @@ export const PORTRAITS: Record<string, string> = {
   mira: pMiraUrl,
   corvin: pCorvinUrl,
   elara: pElaraUrl,
+  bran: pBranUrl,
+  nell: pNellUrl,
+  oskar: pOskarUrl,
+  sable: pSableUrl,
+  ilse: pIlseUrl,
+  rook: pRookUrl,
+  vesper: pVesperUrl,
+  noktis: pNoktisUrl,
+  aurore: pAuroreUrl,
+  zephyr: pZephyrUrl,
+
 };
 
 function loadImage(url: string, timeoutMs = 12000): Promise<HTMLImageElement> {

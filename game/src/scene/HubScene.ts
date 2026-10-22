@@ -85,8 +85,6 @@ export class HubScene extends Emitter<SceneEvents> {
   private readonly moonRays: Sprite;
   private readonly vortex: Sprite;
   private readonly portalSwirls: Sprite[] = [];
-  private readonly catEyes: Sprite[] = [];
-  private smith!: Npc;
 
   private readonly skyWidth: number;
   private skyOffset = 0;
@@ -95,7 +93,6 @@ export class HubScene extends Emitter<SceneEvents> {
   private flashBoost = 0;
   private altarPulseTimer = 1.5;
   private hammerTimer = 2;
-  private blinkTimer = 3;
   /** Lucioles qui dérivent au ras du sol devant la ville. */
   private readonly fireflies: ParticleEmitter;
   /** Vol d'oiseaux qui traverse la lune de temps en temps. */
@@ -238,7 +235,6 @@ export class HubScene extends Emitter<SceneEvents> {
     for (const b of this.buildings) if (b.def.layer === 'city') this.cityLayer.addChild(b.hit);
     // Les personnages restent au-dessus des zones cliquables des bâtiments.
     for (const n of this.npcs) this.cityLayer.addChild(n.root);
-    this.cityLayer.addChild(...this.catEyes);
     root.addChild(this.cityLayer);
 
     /* ================= PREMIER PLAN ================= */
@@ -355,23 +351,6 @@ export class HubScene extends Emitter<SceneEvents> {
 
   private addNpcs(): void {
     const t = this.tex;
-    // Garde qui patrouille devant l'autel
-    const guard = new Npc({ texture: t.guard, x: 1430, y: 990, height: 200, facesRight: false, breathe: 0.01,
-      path: { from: [1430, 992], to: [1630, 985], speed: 42, pause: [2.5, 5] } });
-    // Cultiste à la lanterne qui erre entre le portail et la taverne
-    const cultist = new Npc({ texture: t.cultist, x: 720, y: 1080, height: 192, facesRight: true,
-      path: { from: [720, 1085], to: [1140, 1012], speed: 30, pause: [3, 6] } });
-    const lantern = this.lights.add({ x: 0, y: 0, radius: 110, color: 0xffa040, intensity: 0.9, flicker: 0.9 });
-    cultist.attach(lantern, 0.898, 0.362);
-    // Forgeron devant la forge
-    this.smith = new Npc({ texture: t.smith, x: 2222, y: 940, height: 196, facesRight: true, breathe: 0.016 });
-    // Chat noir assis sur les marches du portail
-    const cat = new Npc({ texture: t.cat, x: 628, y: 992, height: 74, facesRight: true, breathe: 0.02 });
-    for (const nx of [0.171, 0.342]) {
-      const eye = this.sprite(this.fx.spark, 0, 0, 11, 0xffd040, 0.9);
-      this.catEyes.push(eye);
-      cat.attach(eye, nx, 0.194);
-    }
     // Héros de passage en ville (on peut leur parler)
     const kael = new Npc({ texture: t.hero_kael, x: 2420, y: 1150, height: 228, facesRight: true, breathe: 0.01, aura: 0xff7a2a, auraAlpha: 0.5 });
     const aldric = new Npc({ texture: t.hero_aldric, x: 2535, y: 1172, height: 212, facesRight: true, face: -1, breathe: 0.013, aura: 0xffd36a, auraAlpha: 0.42 });
@@ -382,7 +361,6 @@ export class HubScene extends Emitter<SceneEvents> {
     const named: Array<[string, Npc]> = [
       ['kael', kael], ['aldric', aldric], ['lyra', lyra],
       ['vaelen', vaelen], ['sylvaine', sylvaine], ['pyrrha', pyrrha],
-      ['cat', cat], ['cultist', cultist], ['guard', guard], ['smith', this.smith],
     ];
     for (const [id, n] of named) {
       this.talkers.set(id, n);
@@ -392,9 +370,8 @@ export class HubScene extends Emitter<SceneEvents> {
         this.emit('talk', { id });
       }, () => !this.camera.wasDrag);
     }
-    this.npcs.push(lyra, kael, aldric, vaelen, sylvaine, pyrrha, cat, cultist, guard, this.smith);
+    this.npcs.push(lyra, kael, aldric, vaelen, sylvaine, pyrrha);
     for (const n of this.npcs) this.cityLayer.addChild(n.root);
-    this.cityLayer.addChild(...this.catEyes);
   }
 
   private addCityParticles(): void {
@@ -592,20 +569,13 @@ export class HubScene extends Emitter<SceneEvents> {
       this.cityPulses.spawn(1700, 735, { tint: 0xff2a50, from: 60, to: 520, duration: 2.2, alpha: 0.7, flatten: 0.3 });
     }
 
-    // Forgeron qui frappe l'enclume
+    // Étincelles de la forge (les personnages ont été retirés, l'atelier reste vivant).
     this.hammerTimer -= dt;
     if (this.hammerTimer <= 0) {
       this.hammerTimer = rand(1.6, 4);
-      this.smith.punch();
       this.anvilSparks.burst(18, 2290, 846);
       audio.anvil(this.proximity(SOUND.forge));
     }
-
-    // Yeux du chat qui clignent
-    this.blinkTimer -= dt;
-    const closed = this.blinkTimer < 0.14;
-    if (this.blinkTimer <= 0) this.blinkTimer = rand(2.5, 6);
-    for (const e of this.catEyes) e.alpha = closed ? 0 : 0.75 + Math.sin(t * 3) * 0.15;
 
     // Son d'ambiance
     audio.update(dt, Math.max(this.proximity(SOUND.forge), 0.25), this.proximity(SOUND.portal));

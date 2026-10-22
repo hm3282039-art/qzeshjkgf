@@ -774,6 +774,16 @@ export class BattleSim extends Emitter<SimEvents> {
       case 'mira': return this.miraSkill(u, target);
       case 'corvin': return this.corvinSkill(u);
       case 'elara': return this.elaraSkill(u);
+      case 'bran': return this.branSkill(u);
+      case 'nell': return this.nellSkill(u, target);
+      case 'oskar': return this.oskarSkill(u);
+      case 'sable': return this.sableSkill(u);
+      case 'ilse': return this.ilseSkill(u);
+      case 'rook': return this.rookSkill(u, target);
+      case 'vesper': return this.vesperSkill(u);
+      case 'noktis': return this.noktisSkill(u);
+      case 'aurore': return this.auroreSkill(u);
+      case 'zephyr': return this.zephyrSkill(u);
       case 'ghoul': return this.ghoulSkill(u, target);
       case 'skeleton': return this.skeletonSkill(u, target);
       case 'drowned': return this.drownedSkill(u, target);
@@ -1314,8 +1324,279 @@ export class BattleSim extends Emitter<SimEvents> {
       case 'mira': this.miraUlt(u); break;
       case 'corvin': this.corvinUlt(u); break;
       case 'elara': this.elaraUlt(u); break;
+      case 'bran': this.branUlt(u); break;
+      case 'nell': this.nellUlt(u); break;
+      case 'oskar': this.oskarUlt(u); break;
+      case 'sable': this.sableUlt(u); break;
+      case 'ilse': this.ilseUlt(u); break;
+      case 'rook': this.rookUlt(u); break;
+      case 'vesper': this.vesperUlt(u); break;
+      case 'noktis': this.noktisUlt(u); break;
+      case 'aurore': this.auroreUlt(u); break;
+      case 'zephyr': this.zephyrUlt(u); break;
     }
     return true;
+  }
+
+
+  /* ---------- Recrues de la Tour (v1.5) ---------- */
+
+  private branSkill(u: Unit): boolean {
+    const near = this.foes(u).filter((f) => this.dist(u, f) < 220);
+    if (!near.length) { u.skillT = 0.5; return false; }
+    u.lock = 0.55;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'kael_slam', u, x: u.x, y: u.y });
+    this.after(0.2, () => {
+      if (!u.alive || u.stun > 0) return;
+      for (const f of this.foes(u)) {
+        if (this.dist(u, f) < 230) {
+          this.hit(u, f, 1.5, 'phys');
+          f.slowT = Math.max(f.slowT, 2);
+        }
+      }
+    });
+    return true;
+  }
+
+  private branUlt(u: Unit): void {
+    u.lock = 0.9;
+    this.emit('fx', { type: 'corvin_charge', u, x: u.x, y: u.y });
+    this.after(0.35, () => {
+      if (!this.over) return;
+    });
+    this.after(0.3, () => {
+      if (!u.alive) return;
+      for (const f of this.foes(u)) {
+        if (f.x > u.x - 60) {
+          this.hit(u, f, 2.2, 'phys');
+          f.stun = Math.max(f.stun, 0.7);
+        }
+      }
+      this.emit('fx', { type: 'thorne_spin', u, x: u.x, y: u.y });
+    });
+  }
+
+  private nellSkill(u: Unit, _t: Unit): boolean {
+    const foes = this.foes(u).sort((a, b) => a.hp - b.hp);
+    const t = foes[0];
+    if (!t) return false;
+    u.lock = 0.5;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'skeleton_aim', u, target: t });
+    this.after(0.16, () => {
+      if (!u.alive || !t.alive) return;
+      this.shoot(u, t, 'arrow', () => {
+        this.hit(u, t, 1.8, 'phys');
+        t.dots.push({ src: u, mult: 0.3, every: 0.8, timer: 0.8, left: 4, kind: 'phys' });
+      }, true);
+    });
+    return true;
+  }
+
+  private nellUlt(u: Unit): void {
+    for (const f of this.foes(u)) {
+      this.shoot(u, f, 'arrow', () => this.hit(u, f, 1.1, 'phys'), true);
+    }
+    this.emit('fx', { type: 'seren_volley', u, x: u.x, y: u.y });
+  }
+
+  private oskarSkill(u: Unit): boolean {
+    u.lock = 0.45;
+    this.emit('cast', { u, ability: 'skill' });
+    u.shield = Math.max(u.shield, Math.round(u.maxHp * 0.2 * u.skillPower));
+    u.shieldT = 6;
+    for (const f of this.foes(u)) f.tauntT = Math.max(f.tauntT, 3);
+    this.emit('fx', { type: 'kael_shield', u });
+    return true;
+  }
+
+  private oskarUlt(u: Unit): void {
+    this.emit('fx', { type: 'vaelen_wall', u, x: u.x, y: u.y });
+    for (const a of this.allies(u)) {
+      a.shield = Math.max(a.shield, Math.round(a.maxHp * 0.12 * u.skillPower));
+      a.shieldT = 6;
+      a.dmgRed = Math.min(0.5, a.dmgRed + 0.12);
+      a.dmgRedT = 5;
+    }
+  }
+
+  private sableSkill(u: Unit): boolean {
+    const t = this.foes(u).sort((a, b) => a.hp - b.hp)[0];
+    if (!t) return false;
+    u.lock = 0.45;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'lyra_blink', u, x: t.x, y: t.y });
+    u.x = Math.max(FIELD.minX, Math.min(FIELD.maxX, t.x - u.facing * 70));
+    u.y = clampY(t.y);
+    this.after(0.12, () => { if (u.alive && t.alive) this.hit(u, t, 1.9, 'phys'); });
+    return true;
+  }
+
+  private sableUlt(u: Unit): void {
+    const t = this.foes(u).sort((a, b) => a.hp - b.hp)[0];
+    if (!t) return;
+    u.lock = 0.6;
+    this.emit('fx', { type: 'lyra_ult_start', u, x: t.x, y: t.y });
+    this.after(0.25, () => {
+      if (!u.alive || !t.alive) return;
+      const exec = t.ratio < 0.25 ? 6.4 : 3.2;
+      this.hit(u, t, exec, 'true');
+      this.emit('fx', { type: 'lyra_slash', u, target: t });
+    });
+  }
+
+  private ilseSkill(u: Unit): boolean {
+    const ally = this.allies(u).filter((a) => a.hp < a.maxHp).sort((a, b) => a.ratio - b.ratio)[0];
+    if (!ally) { u.skillT = 0.6; return false; }
+    u.lock = 0.5;
+    this.emit('cast', { u, ability: 'skill' });
+    this.heal(u, ally, ally.maxHp * 0.18 * u.skillPower);
+    ally.shield = Math.max(ally.shield, Math.round(ally.maxHp * 0.08 * u.skillPower));
+    ally.shieldT = 4;
+    this.emit('fx', { type: 'aldric_heal', u, target: ally });
+    return true;
+  }
+
+  private ilseUlt(u: Unit): void {
+    const foes = this.foes(u);
+    if (!foes.length) return;
+    const strikes = [...foes].sort((a, b) => b.hp - a.hp).slice(0, 3);
+    strikes.forEach((f, i) => {
+      this.after(0.25 + i * 0.18, () => {
+        if (this.over || !f.alive) return;
+        this.hit(u, f, 1.3, 'magic');
+        f.slowT = Math.max(f.slowT, 2);
+        this.emit('fx', { type: 'pyrrha_impact', u, target: f });
+      });
+    });
+  }
+
+  private rookSkill(u: Unit, _t: Unit): boolean {
+    const t = this.foes(u).sort((a, b) => this.dist(u, a) - this.dist(u, b))[0];
+    if (!t) return false;
+    u.lock = 0.5;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'kael_slam', u, x: u.x, y: u.y });
+    this.after(0.18, () => {
+      if (!u.alive || !t.alive) return;
+      this.hit(u, t, 1.4, 'phys');
+      t.stun = Math.max(t.stun, 1);
+    });
+    return true;
+  }
+
+  private rookUlt(u: Unit): void {
+    u.lock = 0.7;
+    this.emit('fx', { type: 'vaelen_burst', u, x: u.x, y: u.y });
+    for (const f of this.foes(u)) {
+      f.tauntT = Math.max(f.tauntT, 4);
+      if (this.dist(u, f) < 320) this.hit(u, f, 1.6, 'phys');
+    }
+    u.shield = Math.max(u.shield, Math.round(u.maxHp * 0.35 * u.skillPower));
+    u.shieldT = 7;
+  }
+
+  private vesperSkill(u: Unit): boolean {
+    u.lock = 0.55;
+    this.emit('cast', { u, ability: 'skill' });
+    for (const a of this.allies(u)) {
+      this.heal(u, a, a.maxHp * 0.1 * u.skillPower);
+      a.dots.length = 0;
+    }
+    this.emit('fx', { type: 'aldric_heal', u, x: u.x, y: u.y });
+    return true;
+  }
+
+  private vesperUlt(u: Unit): void {
+    this.emit('fx', { type: 'elara_choir', u, x: u.x, y: u.y });
+    for (const f of this.foes(u)) {
+      this.hit(u, f, 1.9, 'magic');
+      f.slowT = Math.max(f.slowT, 2.5);
+    }
+  }
+
+  private noktisSkill(u: Unit): boolean {
+    const near = this.foes(u).filter((f) => this.dist(u, f) < 260);
+    if (!near.length) { u.skillT = 0.5; return false; }
+    u.lock = 0.6;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'corvin_slam', u, x: u.x, y: u.y });
+    this.after(0.22, () => {
+      if (!u.alive) return;
+      for (const f of this.foes(u)) {
+        if (this.dist(u, f) < 270) {
+          this.hit(u, f, 1.7, 'phys');
+          f.dots.push({ src: u, mult: 0.35, every: 0.9, timer: 0.9, left: 5, kind: 'phys' });
+        }
+      }
+    });
+    return true;
+  }
+
+  private noktisUlt(u: Unit): void {
+    u.lock = 0.8;
+    this.emit('fx', { type: 'corvin_judgement', u, x: u.x, y: u.y });
+    this.after(0.3, () => {
+      if (!u.alive) return;
+      let dealt = 0;
+      for (const f of this.foes(u)) dealt += this.hit(u, f, 2.6, 'phys');
+      if (dealt > 0) this.heal(u, u, dealt * 0.25);
+    });
+  }
+
+  private auroreSkill(u: Unit): boolean {
+    const c = this.densest(u, 420);
+    if (!c) return false;
+    u.lock = 0.55;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'seren_skyshot', u, x: c.x, y: c.y });
+    this.after(0.25, () => {
+      if (this.over) return;
+      for (const f of this.foes(u)) {
+        if (Math.hypot(f.x - c.x, (f.y - c.y) * 0.5) < 150) {
+          this.hit(u, f, 1.6, 'magic');
+          f.dots.push({ src: u, mult: 0.3, every: 0.8, timer: 0.8, left: 3, kind: 'magic' });
+        }
+      }
+    });
+    return true;
+  }
+
+  private auroreUlt(u: Unit): void {
+    this.emit('fx', { type: 'pyrrha_pyre', u, x: u.x, y: u.y });
+    this.after(0.3, () => {
+      if (!u.alive) return;
+      for (const f of this.foes(u)) this.hit(u, f, 2.4, 'magic');
+      for (const a of this.allies(u)) this.heal(u, a, a.maxHp * 0.18 * u.skillPower);
+    });
+  }
+
+  private zephyrSkill(u: Unit): boolean {
+    const foes = this.foes(u).slice(0, 3);
+    if (!foes.length) return false;
+    u.lock = 0.45;
+    this.emit('cast', { u, ability: 'skill' });
+    this.emit('fx', { type: 'lyra_blink', u, x: u.x, y: u.y });
+    for (const f of foes) this.hit(u, f, 1.5, 'phys');
+    u.hasteT = Math.max(u.hasteT, 3);
+    return true;
+  }
+
+  private zephyrUlt(u: Unit): void {
+    const foes = this.foes(u);
+    if (!foes.length) return;
+    u.hasteT = Math.max(u.hasteT, 6);
+    for (let i = 0; i < 6; i++) {
+      this.after(0.12 + i * 0.1, () => {
+        if (!u.alive || this.over) return;
+        const alive = this.foes(u);
+        if (!alive.length) return;
+        const t = alive[Math.floor(this.random() * alive.length)]!;
+        this.hit(u, t, 1.0, 'phys');
+        this.emit('fx', { type: 'mira_shot', u, target: t });
+      });
+    }
   }
 
   private kaelUlt(u: Unit): void {

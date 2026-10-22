@@ -42,7 +42,7 @@ export class SummonScreen {
     const poolRow = (r: 'SSR' | 'SR') => SUMMON_POOL[r].map((h) => {
       const owned = store.owns(h.id);
       return `<div class="sm-ph ${owned ? '' : 'missing'}" style="--c:${h.css}" title="${h.name}">
-        <img src="${PORTRAITS[h.id]}" alt=""/>${owned ? starsHTML(store.starsOf(h), 'mini') : '<em>NOUVEAU</em>'}</div>`;
+        <img src="${PORTRAITS[h.id]}" alt=""/>${owned ? starsHTML(store.starsOf(h), 'mini', store.redOf(h)) : '<em>NOUVEAU</em>'}</div>`;
     }).join('');
     const each = (r: 'SSR' | 'SR') => RATES[r] / SUMMON_POOL[r].length;
     const modal = this.ui.openModal(`
@@ -267,7 +267,7 @@ export class SummonScreen {
         <span class="hd-rar ${h.rarity}">${h.rarity}</span>
         <h2>${h.name}</h2>
         <div class="ss-title">${h.title}</div>
-        ${starsHTML(store.starsOf(h))}
+        ${starsHTML(store.starsOf(h), '', store.redOf(h))}
         <div class="ss-phrase">« ${sig.phrase} »</div>
         <p>${h.quote}</p>
         <small>Clique pour continuer</small>
