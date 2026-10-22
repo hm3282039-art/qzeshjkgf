@@ -30,6 +30,9 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 import imageio_ffmpeg
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from animate_ult import smoothed_anim  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "game", "src", "assets")
 OUT = ASSETS
@@ -37,7 +40,7 @@ FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 
 W = int(os.environ.get("ULT_W", "854"))
 H = int(round(W * 9 / 16))
-FPS = int(os.environ.get("ULT_FPS", "20"))
+FPS = int(os.environ.get("ULT_FPS", "30"))
 CRF = os.environ.get("ULT_CRF", "38")
 DUR = 7.0
 NFRAMES = int(round(DUR * FPS))
@@ -47,13 +50,13 @@ FONT_TITLE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 # Chronologie de la scène, en secondes. Chaque plan dure exactement ce qu'il faut.
 T = {
-    "wide":  (0.00, 1.20),   # plan large, la charogne fonce
-    "illu":  (1.20, 2.70),   # l'illustration arrive
-    "white": (2.70, 3.40),   # le blanc surexposé sur le visage
-    "anim":  (3.40, 5.10),   # les 4 dessins, image par image
-    "hit":   (5.10, 5.95),   # l'impact
-    "title": (5.95, 6.70),   # le nom
-    "out":   (6.70, 7.00),   # fondu
+    "wide":  (0.00, 1.10),   # plan large, la charogne fonce
+    "illu":  (1.10, 2.40),   # l'illustration arrive
+    "white": (2.40, 3.00),   # le blanc surexposé sur le visage
+    "anim":  (3.00, 5.40),   # L'ANIMATION — le héros joue son geste
+    "hit":   (5.40, 6.15),   # l'impact
+    "title": (6.15, 6.80),   # le nom
+    "out":   (6.80, 7.00),   # fondu
 }
 DUR = 7.0
 START = {k: v[0] for k, v in T.items()}
@@ -381,10 +384,14 @@ def shot_white(t, hero, art):
 
 
 def shot_animation(t, hero, frames):
-    """Les quatre dessins de l'action, avec des images de flou entre eux."""
+    """
+    Le héros joue son geste : la séquence a été calculée image par image
+    (déplacement réel des pixels entre les poses), donc le mouvement est continu.
+    """
     p = clamp((t - START['anim']) / (END['anim'] - START['anim']))
-    pos = p * 4.0
-    idx = min(3, int(pos))
+    n = len(frames)
+    pos = p * (n - 1)
+    idx = min(n - 1, int(pos))
     local = pos - idx
 
     c = hero["rgb"]
@@ -401,7 +408,7 @@ def shot_animation(t, hero, frames):
     def pose(i, scale, alpha=1.0, blur=0.0, dx=0.0, dy=0.0):
         """Pose le dessin sur du noir, puis l'ajoute en lumière (screen) :
         le fond noir du dessin disparaît et laisse voir le halo."""
-        if i < 0 or i > 3:
+        if i < 0 or i >= len(frames):
             return
         im = frames[i].convert("RGB").resize((int(W * scale), int(H * scale)), Image.LANCZOS)
         if blur > 0.2:
@@ -413,14 +420,11 @@ def shot_animation(t, hero, frames):
         nonlocal frame
         frame = ImageChops.screen(frame.convert("RGB"), canvas).convert("RGBA")
 
-    punch = 1.06 - 0.05 * ease_out(local / 0.35)
-    # image de flou : deux dessins superposés, étirés, quand on change de pose
-    if local > 0.74 and idx < 3:
-        smear = ease_out((local - 0.74) / 0.26)
-        pose(idx, punch, 1.0 - 0.35 * smear, 0.0, -10 * smear, 4 * smear)
-        pose(idx + 1, punch, 0.85 * smear, 1.6 * smear, 11 * smear, -3 * smear)
-    else:
-        pose(idx, punch)
+    # le dessin du moment, avec juste un souffle de mouvement entre deux images
+    punch = 1.02 - 0.02 * math.sin(p * math.pi * 8)
+    pose(idx, punch, 1.0)
+    if local > 0.5 and idx + 1 < len(frames):
+        pose(idx + 1, punch, (local - 0.5) * 0.55)
 
     # lignes de vitesse (lumineuses, jamais noires)
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -616,7 +620,13 @@ def render(hero_id: str, out_dir: str):
 
     seq = [f"seq_{hero_id}_{i}.webp" for i in range(4)]
     has_seq = all(os.path.exists(os.path.join(ASSETS, f)) for f in seq)
-    frames_seq = [load(f) for f in seq] if has_seq else None
+    anim_frames: list[Image.Image] = []
+    if has_seq:
+        keys = [load(f).convert("RGBA") for f in seq]
+        dur_anim = T["anim"][1] - T["anim"][0]
+        per_gap = max(4, int(round(dur_anim * FPS / 3)))
+        print(f"  … animation : {per_gap} dessins entre chaque pose ({dur_anim:.1f}s à {FPS} i/s)")
+        anim_frames = smoothed_anim(keys, per_gap=per_gap, lean=5.0, smear=0.09)
 
     for n in range(NFRAMES):
         t = n / FPS
@@ -643,10 +653,10 @@ def render(hero_id: str, out_dir: str):
         elif seg == "white":
             img = shot_white(t, hero, art).convert("RGB")
         elif seg == "anim":
-            if frames_seq:
-                img = shot_animation(t, hero, frames_seq).convert("RGB")
-                beat = (t - START["anim"]) % ((T["anim"][1] - T["anim"][0]) / 4)
-                img = shake_frame(img, 8 if beat < 0.05 else 0.8, n)
+            if anim_frames:
+                img = shot_animation(t, hero, anim_frames).convert("RGB")
+                beat = (t - START["anim"]) % ((T["anim"][1] - T["anim"][0]) / 3)
+                img = shake_frame(img, 5 if beat < 0.04 else 0.6, n)
             else:
                 img = shot_illustration(t, hero, art).convert("RGB")
         elif seg == "hit":
