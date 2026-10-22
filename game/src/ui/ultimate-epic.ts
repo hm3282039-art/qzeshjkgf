@@ -137,10 +137,10 @@ const HIT = EPIC_HIT;
 
 /** Les courbes. Temps en ms, angles en degrés, déplacements en px du dessin. */
 const T = {
-  camZoom: [[0, 1.3], [900, 1.42], [1500, 1], [HIT, 1], [HIT + 60, 1.34], [2300, 1.08], [2900, 1], [EPIC_MS, 1]] as Track,
+  camZoom: [[0, 1.14], [900, 1.2], [1500, 1], [HIT, 1], [HIT + 60, 1.18], [2300, 1.05], [2900, 1], [EPIC_MS, 1]] as Track,
   camX: [[0, -4], [900, -7], [1500, 0], [HIT, 0], [HIT + 70, 3], [2400, 0], [EPIC_MS, 0]] as Track,
   camRot: [[0, -3], [900, -6], [1500, 0], [HIT, -2], [HIT + 60, -5], [2200, 1.5], [2700, 0], [EPIC_MS, 0]] as Track,
-  heroX: [[0, -40], [900, -170], [1500, 0], [EPIC_MS, 0]] as Track,
+  heroX: [[0, -30], [900, -110], [1500, 0], [EPIC_MS, 0]] as Track,
   heroY: [[0, 0], [1500, 0], [1620, -18], [HIT, 0], [EPIC_MS, 0]] as Track,
   heroRot: [[0, -2], [900, -5], [1500, 0], [HIT, -3], [2050, 2], [2700, 0], [EPIC_MS, 0]] as Track,
   heroS: [[0, 1], [1500, 1], [1620, 1.03], [HIT, 1.05], [2300, 1], [EPIC_MS, 1]] as Track,
@@ -214,11 +214,19 @@ export function playEpic(
   const world = scene.querySelector<HTMLElement>('.ep-world')!;
   const boneEl = (n: string): HTMLElement | null => scene.querySelector<HTMLElement>(`[data-b="${n}"]`);
 
-  // échelle : le dessin doit tenir dans la scène
-  const fitH = host.clientHeight || 420;
-  const k = Math.min((fitH * 0.94) / spec.h, (host.clientWidth || 720) / spec.w);
-  world.style.transform = `translate(-50%,-50%) scale(${k.toFixed(3)})`;
-  world.style.bottom = 'auto';
+  // Échelle : le dessin doit tenir dans la scène MÊME QUAND LA CAMÉRA ZOOME.
+  // (Avant, je calculais la taille pour un zoom de 1 : la caméra zoomait alors
+  //  par-dessus et ne laissait que les jambes à l'écran.)
+  const MAXZ = 1.22;
+  const fit = (): void => {
+    const w = host.clientWidth || 720;
+    const h = host.clientHeight || 420;
+    const k = Math.min((h * 0.9) / (spec.h * MAXZ), (w * 0.98) / spec.w);
+    world.style.transform = `translate(-50%,-50%) scale(${k.toFixed(4)})`;
+  };
+  fit();
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null;
+  ro?.observe(host);
 
   const bones = {
     hero: scene.querySelector<HTMLElement>('.ep-hero'),
@@ -298,7 +306,7 @@ export function playEpic(
     }
 
     if (ms < EPIC_MS) raf(tick);
-    else onEnd?.();
+    else { ro?.disconnect(); onEnd?.(); }
   };
 
   audio.play('riser', { vol: 0.45 });

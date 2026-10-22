@@ -9,7 +9,7 @@
 
 /* la caméra : c'est elle qui bouge, pas les décors */
 .ep-cam {
-  position: absolute; inset: -14%; transform-origin: 50% 52%;
+  position: absolute; inset: -10%; transform-origin: 50% 44%;
   will-change: transform; backface-visibility: hidden;
 }
 
