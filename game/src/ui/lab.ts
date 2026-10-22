@@ -1,5 +1,6 @@
 import { HEROES } from '../data/heroes';
 import { PORTRAITS } from '../assets';
+import { audio } from '../audio/AudioEngine';
 import {
   ARCHETYPES,
   ULT_STYLES,
@@ -11,25 +12,30 @@ import {
   type UltStyle,
 } from './ultimate';
 import { fullDuration, fullUltHTML } from './ultimate-full';
+import { CINE_MS, CINE_SHOTS, cineHTML, cineSound } from './ultimate-cine';
 import './ultimate.css';
 import './ultimate-full.css';
+import './ultimate-cine.css';
 
 /**
  * LE LABORATOIRE D'ULTIMES (`?lab`)
  *
- * Deux salles d'essai :
- *   • RÉVÉLATION — le carton d'ultime, 4 styles (A, B, C, D), très court.
- *   • CINÉMATIQUE — la scène complète en 5 actes, 2 styles (A cinéma, B comics),
- *     avec la vraie action de l'ultime (coup au sol, traversée, pluie du ciel…).
+ * Trois salles d'essai :
+ *   • CINÉMATIQUE — la scène en 7 plans de caméra (le vrai rendez-vous).
+ *   • SCÈNE v1    — l'essai précédent : un seul plan continu, 5 actes.
+ *   • CARTON      — juste la révélation du nom, 4 styles.
  *
  * On choisit en regardant. Le réglage est mémorisé et utilisé en combat.
  */
 
-export type UltMode = 'card' | 'full';
+export type UltMode = 'cine' | 'full' | 'card';
 const MODE_KEY = 'legendes-ult-mode';
 
 export function getUltMode(): UltMode {
-  try { return localStorage.getItem(MODE_KEY) === 'card' ? 'card' : 'full'; } catch { return 'full'; }
+  try {
+    const v = localStorage.getItem(MODE_KEY);
+    return v === 'card' || v === 'full' ? v : 'cine';
+  } catch { return 'cine'; }
 }
 export function setUltMode(m: UltMode): void {
   try { localStorage.setItem(MODE_KEY, m); } catch { /* ignoré */ }
@@ -42,13 +48,16 @@ const raf = (fn: () => void): number =>
 /** Les styles qui savent jouer une scène complète. */
 const FULL_STYLES: UltStyle[] = ['cinema', 'comics'];
 
-/** Les cinq actes, avec leur position dans la timeline (en %). */
-const ACTS = [
-  { at: 0, label: "Entrée", hint: "la caméra pousse, le monde s'éteint" },
-  { at: 18, label: 'Nom', hint: 'le carton de ton ultime' },
-  { at: 33, label: 'Action', hint: 'le héros joue son geste' },
-  { at: 52, label: 'Impact', hint: 'flash, dégâts, fissures' },
-  { at: 70, label: 'Sortie', hint: 'la poussière retombe' },
+/** Repères du laboratoire, en millisecondes. */
+interface Mark { at: number; label: string; hint: string }
+
+const MARKS_CINE: Mark[] = CINE_SHOTS.map((s) => ({ at: s.at, label: s.label, hint: s.hint }));
+const MARKS_FULL: Mark[] = [
+  { at: 0, label: 'Entrée', hint: "la caméra pousse, le monde s'éteint" },
+  { at: 830, label: 'Nom', hint: 'le carton de ton ultime' },
+  { at: 1520, label: 'Action', hint: 'le héros joue son geste' },
+  { at: 2390, label: 'Impact', hint: 'flash, dégâts, fissures' },
+  { at: 3220, label: 'Sortie', hint: 'la poussière retombe' },
 ];
 
 export function mountLab(): void {
@@ -64,17 +73,19 @@ export function mountLab(): void {
     <header class="lab-top">
       <div class="lab-title">
         <b>Laboratoire d'ultimes</b>
-        <small>La scène complète est en test : le combat joue encore le carton du nom. Dis-moi ce que tu gardes, je l'intègre après.</small>
+        <small>Trois façons de filmer le même ultime. Le combat, lui, ne change pas encore.</small>
       </div>
       <div class="lab-acts">
+        <button class="lab-btn ghost" data-sound>Son : oui</button>
         <button class="lab-btn ghost" data-replay>Rejouer</button>
         <button class="lab-btn ghost" data-back>Retour au jeu</button>
         <button class="lab-btn keep" data-keep>Choisir pour le jeu</button>
       </div>
     </header>
     <div class="lab-modes">
-      <button class="lab-mode" data-mode="full"><b>Cinématique complète</b><span>5 actes · le héros joue son ultime · 2 styles</span></button>
-      <button class="lab-mode" data-mode="card"><b>Révélation seule</b><span>le carton de nom · 4 styles · 1,5 s</span></button>
+      <button class="lab-mode" data-mode="cine"><b>Cinématique</b><span>7 plans de caméra · gros plan, ralenti, impact · son</span></button>
+      <button class="lab-mode" data-mode="full"><b>Scène continue</b><span>l'essai précédent · 5 actes · un seul plan</span></button>
+      <button class="lab-mode" data-mode="card"><b>Carton du nom</b><span>la révélation seule · 4 styles · 1,5 s</span></button>
     </div>
     <div class="lab-stage" data-stage>
       <div class="lab-frame"></div>
@@ -88,8 +99,9 @@ export function mountLab(): void {
 
   let mode: UltMode = getUltMode();
   let style: UltStyle = getUltStyle();
-  if (mode === 'full' && !FULL_STYLES.includes(style)) style = 'cinema';
+  if (mode !== 'card' && !FULL_STYLES.includes(style)) style = 'cinema';
   let heroId = HEROES[0]!.id;
+  let sound = true;
   let timer = 0;
   let loop = 0;
   let runId = 0;
@@ -102,12 +114,24 @@ export function mountLab(): void {
   const progEl = root.querySelector<HTMLElement>('[data-prog]')!;
   const modesEl = root.querySelector<HTMLElement>('.lab-modes')!;
 
+  /** Le navigateur n'autorise le son qu'après un vrai clic : on l'arme au premier. */
+  let audioReady = false;
+  const unlock = (): void => {
+    if (audioReady) return;
+    audioReady = true;
+    audio.start();
+  };
+  root.addEventListener('pointerdown', unlock, { once: true });
+  document.addEventListener('keydown', unlock, { once: true });
+
   const stop = (): void => {
     window.clearTimeout(timer); window.clearTimeout(loop);
-    stage.querySelectorAll('.ult, .ucf').forEach((n) => n.remove());
+    stage.querySelectorAll('.ult, .ucf, .cs').forEach((n) => n.remove());
   };
 
-  /** Remplit la barre de progression + met en avant l'acte en cours. */
+  const markers = (): Mark[] => (mode === 'cine' ? MARKS_CINE : mode === 'full' ? MARKS_FULL : []);
+
+  /** Barre de progression + mise en avant du plan en cours. */
   const runProgress = (dur: number, on: boolean): void => {
     const me = ++runId;
     const fill = progEl.querySelector<HTMLElement>('i')!;
@@ -116,32 +140,24 @@ export function mountLab(): void {
     fill.style.animation = 'none';
     void fill.offsetWidth;
     fill.style.animation = on ? `lab-fill ${dur}ms linear forwards` : 'none';
-    if (on) {
-      const t0 = performance.now();
-      const tick = (): void => {
-        if (me !== runId) return;
-        const p = Math.min(100, ((performance.now() - t0) / dur) * 100);
-        actsEl.querySelectorAll<HTMLElement>('[data-at]').forEach((m) =>
-          m.classList.toggle('past', Number(m.dataset.at) <= p));
-        if (p < 100) raf(tick);
-      };
-      raf(tick);
-    }
+    if (!on) return;
+    const t0 = performance.now();
+    const tick = (): void => {
+      if (me !== runId) return;
+      const ms = performance.now() - t0;
+      const p = Math.min(100, (ms / dur) * 100);
+      actsEl.querySelectorAll<HTMLElement>('[data-at]').forEach((m) =>
+        m.classList.toggle('past', Number(m.dataset.at) <= ms));
+      if (p < 100) raf(tick);
+    };
+    raf(tick);
   };
 
   const play = (once = false): void => {
     stop();
     const def = HEROES.find((h) => h.id === heroId)!;
     const d = ultDataOf(def);
-    if (mode === 'full') {
-      stage.insertAdjacentHTML('beforeend', fullUltHTML(style, d, { lab: true }));
-      const dur = fullDuration(style);
-      runProgress(dur, true);
-      timer = window.setTimeout(() => {
-        stage.querySelectorAll('.ucf').forEach((n) => n.remove());
-        if (!once) loop = window.setTimeout(play, 900);
-      }, dur);
-    } else {
+    if (mode === 'card') {
       stage.insertAdjacentHTML('beforeend', ultHTML(style, d));
       const dur = ultDuration(style);
       runProgress(dur, false);
@@ -149,12 +165,34 @@ export function mountLab(): void {
         stage.querySelectorAll('.ult').forEach((n) => n.remove());
         if (!once) loop = window.setTimeout(play, 650);
       }, dur);
+      return;
     }
+    const dur = mode === 'cine' ? CINE_MS : fullDuration(style);
+    stage.insertAdjacentHTML('beforeend', mode === 'cine'
+      ? cineHTML(style, d, { lab: true })
+      : fullUltHTML(style, d, { lab: true }));
+    runProgress(dur, true);
+    if (mode === 'cine' && sound && audioReady) cineSound();
+    const cls = mode === 'cine' ? '.cs' : '.ucf';
+    timer = window.setTimeout(() => {
+      stage.querySelectorAll(cls).forEach((n) => n.remove());
+      if (!once) loop = window.setTimeout(play, mode === 'cine' ? 700 : 900);
+    }, dur);
   };
 
   const drawModes = (): void => {
     modesEl.querySelectorAll<HTMLElement>('[data-mode]').forEach((b) =>
       b.classList.toggle('on', b.dataset.mode === mode));
+  };
+
+  const drawMarks = (): void => {
+    const lines = markers();
+    const total = mode === 'cine' ? CINE_MS : fullDuration(style);
+    actsEl.innerHTML = lines.map((m, i) => {
+      const pct = Math.max(0, Math.min(100, (m.at / total) * 100));
+      return `<div class="lab-act${i === 0 ? ' first' : ''}" data-at="${m.at}" style="left:${pct}%"
+        title="${m.hint}"><b>${m.label}</b><span>${(m.at / 1000).toFixed(1)}s</span></div>`;
+    }).join('');
   };
 
   const drawStyles = (): void => {
@@ -169,15 +207,13 @@ export function mountLab(): void {
     stylesEl.querySelectorAll<HTMLElement>('[data-style]').forEach((b) =>
       b.addEventListener('click', () => {
         const id = b.dataset.style as UltStyle;
-        if (mode === 'full' && !FULL_STYLES.includes(id)) {
+        if (mode !== 'card' && !FULL_STYLES.includes(id)) {
           mode = 'card';
           setUltMode(mode);
-          drawModes();
+          drawModes(); drawMarks();
         }
         style = id;
-        drawStyles();
-        drawInfo();
-        play();
+        drawStyles(); drawInfo(); play();
       }),
     );
   };
@@ -187,14 +223,17 @@ export function mountLab(): void {
     const def = HEROES.find((h) => h.id === heroId)!;
     const d = ultDataOf(def);
     const arch = ARCHETYPES.find((a) => a.id === d.arch)!;
-    info.innerHTML = mode === 'full'
-      ? `<div class="li-txt"><b>${s.letter} · ${s.name} — ${arch.label}</b>
-          <span>${arch.show}</span></div>
-         <div class="li-meta">${fullDuration(style)} ms · ${def.name} · « ${d.name} » · style actif :
-           <b>${getUltMode() === 'full' && getUltStyle() === style ? 'celui-ci' : ULT_STYLES.find((x) => x.id === getUltStyle())?.name}</b></div>`
-      : `<div class="li-txt"><b>${s.letter} · ${s.name}</b><span>${s.desc}</span></div>
-         <div class="li-meta">${s.ms} ms · style actif :
-           <b>${getUltMode() === 'card' && getUltStyle() === style ? 'celui-ci' : 'autre'}</b></div>`;
+    if (mode === 'card') {
+      info.innerHTML = `<div class="li-txt"><b>${s.letter} · ${s.name}</b><span>${s.desc}</span></div>
+        <div class="li-meta">${s.ms} ms · carton du nom</div>`;
+      return;
+    }
+    const dur = mode === 'cine' ? CINE_MS : fullDuration(style);
+    const what = mode === 'cine'
+      ? '7 plans : large → visage → contre-jour → élan → impact → nom → sortie'
+      : 'un seul plan continu, 5 actes';
+    info.innerHTML = `<div class="li-txt"><b>${s.letter} · ${s.name} — ${arch.label}</b><span>${what}. ${arch.show}</span></div>
+      <div class="li-meta">${(dur / 1000).toFixed(1)} s · ${def.name} · « ${d.name} »</div>`;
   };
 
   const drawRoster = (): void => {
@@ -209,9 +248,7 @@ export function mountLab(): void {
     rosterEl.querySelectorAll<HTMLElement>('[data-hero]').forEach((b) =>
       b.addEventListener('click', () => {
         heroId = b.dataset.hero!;
-        drawRoster();
-        drawInfo();
-        play();
+        drawRoster(); drawInfo(); play();
       }),
     );
   };
@@ -219,12 +256,9 @@ export function mountLab(): void {
   modesEl.querySelectorAll<HTMLElement>('[data-mode]').forEach((b) =>
     b.addEventListener('click', () => {
       mode = b.dataset.mode as UltMode;
-      if (mode === 'full' && !FULL_STYLES.includes(style)) style = 'cinema';
+      if (mode !== 'card' && !FULL_STYLES.includes(style)) style = 'cinema';
       setUltMode(mode);
-      drawModes();
-      drawStyles();
-      drawInfo();
-      play();
+      drawModes(); drawStyles(); drawMarks(); drawInfo(); play();
     }),
   );
 
@@ -234,23 +268,29 @@ export function mountLab(): void {
     const btn = root.querySelector<HTMLElement>('[data-keep]')!;
     btn.textContent = 'Réglage enregistré ✓';
     btn.classList.add('done');
-    window.setTimeout(() => { btn.textContent = 'Garder ce réglage'; btn.classList.remove('done'); }, 1800);
+    window.setTimeout(() => { btn.textContent = 'Choisir pour le jeu'; btn.classList.remove('done'); }, 1800);
     drawInfo();
   });
 
-  root.querySelector('[data-replay]')?.addEventListener('click', () => play(true));
+  root.querySelector('[data-sound]')?.addEventListener('click', (ev) => {
+    sound = !sound;
+    const btn = ev.currentTarget as HTMLElement;
+    btn.textContent = sound ? 'Son : oui' : 'Son : non';
+    btn.classList.toggle('off', !sound);
+    unlock();
+    if (sound) play(true);
+  });
+
+  root.querySelector('[data-replay]')?.addEventListener('click', () => { unlock(); play(true); });
   root.querySelector('[data-back]')?.addEventListener('click', () => {
     const u = new URL(location.href);
     u.searchParams.delete('lab');
     location.href = u.toString();
   });
 
-  actsEl.innerHTML = ACTS.map((a) => `<div class="lab-act${a.at === 0 ? ' first' : ''}" data-at="${a.at}" style="left:${a.at}%" title="${a.hint}">
-    <b>${a.label}</b><span>${a.at}%</span></div>`).join('');
-
   document.addEventListener('keydown', (ev) => {
     const k = ev.key;
-    if (k === ' ') { ev.preventDefault(); play(true); return; }
+    if (k === ' ') { ev.preventDefault(); unlock(); play(true); return; }
     const idIdx = HEROES.findIndex((h) => h.id === heroId);
     if (k === 'ArrowRight' || k === 'ArrowLeft') {
       const step = k === 'ArrowRight' ? 1 : -1;
@@ -258,7 +298,7 @@ export function mountLab(): void {
       drawRoster(); drawInfo(); play();
     }
     if (k === 'ArrowDown' || k === 'ArrowUp') {
-      const ids = mode === 'full' ? FULL_STYLES : ULT_STYLES.map((x) => x.id);
+      const ids: UltStyle[] = mode === 'card' ? ULT_STYLES.map((x) => x.id) : FULL_STYLES;
       const si = Math.max(0, ids.indexOf(style));
       const step = k === 'ArrowDown' ? 1 : -1;
       style = ids[(si + step + ids.length) % ids.length]!;
@@ -268,8 +308,8 @@ export function mountLab(): void {
 
   drawModes();
   drawStyles();
+  drawMarks();
   drawInfo();
   drawRoster();
   play();
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) play(); });
 }

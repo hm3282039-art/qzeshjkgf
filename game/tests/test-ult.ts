@@ -9,6 +9,7 @@ import { parseHTML } from 'linkedom';
 import { HEROES } from '../src/data/heroes';
 import { ARCHETYPES, ULT_STYLES, archetypeOf, ultDataOf, ultDuration, ultHTML } from '../src/ui/ultimate';
 import { fullDuration, fullUltHTML } from '../src/ui/ultimate-full';
+import { CINE_MS, CINE_SHOTS, cineDuration, cineHTML } from '../src/ui/ultimate-cine';
 
 /* ---------- 1. Le carton du nom : 4 styles × 27 héros ---------- */
 const signatures = {
@@ -60,6 +61,39 @@ for (const s of FULL_STYLES) {
   console.log(`Scène ${s === 'cinema' ? 'A · Cinéma' : 'B · Comics'}  ${fullDuration(s)} ms  ·  5 actes  ·  ${HEROES.length} héros`);
 }
 
+/* ---------- 2 bis. La cinématique : 7 plans × 2 styles × 27 héros ---------- */
+if (cineDuration() !== CINE_MS) throw new Error('durée de cinématique incohérente');
+if (CINE_SHOTS.length !== 7) throw new Error(`${CINE_SHOTS.length} plans au lieu de 7`);
+for (let i = 1; i < CINE_SHOTS.length; i++) {
+  const prev = CINE_SHOTS[i - 1]!;
+  if (CINE_SHOTS[i]!.at <= prev.at) throw new Error('plans dans le désordre');
+}
+const last = CINE_SHOTS[CINE_SHOTS.length - 1]!;
+if (last.at + last.dur > CINE_MS + 1) throw new Error('le dernier plan dépasse la durée totale');
+
+const CINE_MARKERS = ['cs-s1', 'cs-s2', 'cs-s3', 'cs-s4', 'cs-s5', 'cs-s6', 'cs-s7',
+  'cs-portrait', 'cs-sil2', 'cs-run', 'cs-foes-hit', 'cs-title', 'cs-end', 'cs-glyph'];
+let c = 0;
+for (const s of FULL_STYLES) {
+  for (const h of HEROES) {
+    const d = ultDataOf(h);
+    const html = cineHTML(s, d, { lab: true });
+    if (/undefined|NaN|\[object/.test(html)) throw new Error(`valeur invalide (ciné) ${s}/${h.id}`);
+    for (const m of CINE_MARKERS) {
+      if (!html.includes(m)) throw new Error(`ciné ${s}/${h.id} : « ${m} » manquant`);
+    }
+    if (!html.includes(`arch-${d.arch}`)) throw new Error(`ciné ${s}/${h.id} : archétype absurde`);
+    if (!html.includes(d.portrait)) throw new Error(`ciné ${s}/${h.id} : pas de portrait (gros plan)`);
+    const titleBlock = html.slice(html.indexOf('cs-title'));
+    const titleLetters = (titleBlock.match(/<i style="--i:\d+">[^<]*<\/i>/g) ?? []).length;
+    if (titleLetters !== d.name.replace(/ /g, '').length) {
+      throw new Error(`ciné ${s}/${h.id} : ${titleLetters} lettres au carton pour « ${d.name} »`);
+    }
+    c++;
+  }
+}
+console.log(`Cinématique · 7 plans · ${CINE_MS} ms · ${c} scènes (2 styles × ${HEROES.length} héros)`);
+
 /* ---------- 3. Couverture des 6 archétypes ---------- */
 const missing = ARCHETYPES.filter((a) => !used.has(a.id));
 if (missing.length) throw new Error(`archétypes jamais utilisés : ${missing.map((a) => a.id).join(', ')}`);
@@ -82,20 +116,20 @@ const modes = document.querySelectorAll('[data-mode]');
 const styles = document.querySelectorAll('[data-style]');
 const heroes = document.querySelectorAll('[data-hero]');
 const acts = document.querySelectorAll('[data-at]');
-if (modes.length !== 2) throw new Error(`2 modes attendus, ${modes.length} trouvés`);
+if (modes.length !== 3) throw new Error(`3 modes attendus, ${modes.length} trouvés`);
 if (styles.length !== ULT_STYLES.length) throw new Error(`${ULT_STYLES.length} styles attendus, ${styles.length} trouvés`);
 if (heroes.length !== HEROES.length) throw new Error(`${HEROES.length} héros attendus, ${heroes.length} trouvés`);
-if (acts.length !== 5) throw new Error(`5 actes attendus, ${acts.length} trouvés`);
-const fullScene = document.querySelector('[data-stage] .ucf');
-if (!fullScene) throw new Error('aucune scène complète montée par défaut');
-const sceneStyle = [...FULL_STYLES].find((s) => fullScene.className.includes(`cf-${s === 'cinema' ? 'a' : 'b'}`));
-if (!sceneStyle) throw new Error('scène sans style identifiable');
+if (acts.length !== CINE_SHOTS.length) throw new Error(`${CINE_SHOTS.length} repères attendus, ${acts.length} trouvés`);
+const firstScene = document.querySelector('[data-stage] .cs');
+if (!firstScene) throw new Error('aucune cinématique montée par défaut');
+if (!firstScene.className.includes('cs-a')) throw new Error('cinématique sans style identifiable');
+if (document.querySelectorAll('[data-stage] .cs-shot').length !== 7) throw new Error('7 plans attendus dans le DOM');
 
 // On bascule en mode « révélation » : le carton doit apparaître.
 (document.querySelector('[data-mode="card"]') as HTMLElement).dispatchEvent(new window.Event('click'));
 const card = document.querySelector('[data-stage] .ult');
 if (!card) throw new Error('le mode révélation ne monte rien');
 
-console.log(`\nLaboratoire monté · ${modes.length} modes · ${styles.length} styles · ${heroes.length} héros · ${acts.length} actes`);
-console.log(`${n} cartons + ${f} scènes complètes générées · aucune valeur invalide · DOM réel`);
+console.log(`\nLaboratoire monté · ${modes.length} modes · ${styles.length} styles · ${heroes.length} héros · ${acts.length} repères`);
+console.log(`${n} cartons + ${f} scènes continues + ${c} cinématiques · aucune valeur invalide · DOM réel`);
 process.exit(0);

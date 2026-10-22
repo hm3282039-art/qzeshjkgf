@@ -406,6 +406,7 @@
 .lab-btn.ghost { background: transparent; }
 .lab-btn.keep { border-color: #ffd36a; color: #ffe9b0; box-shadow: inset 0 0 1.2rem rgba(255,211,106,.12); }
 .lab-btn.keep.done { border-color: #7ed957; color: #b6f59a; }
+.lab-btn.off { opacity: 0.5; }
 
 .lab-stage { position: relative; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden;
   border: 1px solid #3a2c52; background: #05030a;
@@ -444,6 +445,7 @@
 
 @media (max-width: 760px) {
   .lab-styles { grid-template-columns: repeat(2, 1fr); }
+  .lab-modes { grid-template-columns: 1fr; }
   .lab-title small { display: none; }
 }
 
@@ -451,7 +453,7 @@
 .ult-host { position: absolute; inset: 0; pointer-events: none; z-index: 60; }
 
 /* ═══════════════════ SÉLECTEUR DE MODE (laboratoire) ═══════════════════ */
-.lab-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.lab-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
 .lab-mode { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.5rem 0.8rem; text-align: left;
   border-radius: 0.45rem; border: 1px solid #33284a; background: linear-gradient(180deg, #150f24, #0b0814);
   transition: 0.15s; }
