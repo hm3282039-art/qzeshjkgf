@@ -1,0 +1,135 @@
+{
+ "heros": "kael",
+ "personnage": {
+  "w": 889,
+  "h": 557
+ },
+ "morceaux": [
+  {
+   "os": "cape",
+   "fichier": "1_cape.png",
+   "w": 363,
+   "h": 336,
+   "x": 0,
+   "y": 114,
+   "px": 330,
+   "py": 61,
+   "pivot_perso": [
+    330,
+    175
+   ]
+  },
+  {
+   "os": "bouclier",
+   "fichier": "2_bouclier.png",
+   "w": 199,
+   "h": 298,
+   "x": 252,
+   "y": 136,
+   "px": 140,
+   "py": 156,
+   "pivot_perso": [
+    392,
+    292
+   ]
+  },
+  {
+   "os": "casque",
+   "fichier": "3_casque.png",
+   "w": 130,
+   "h": 166,
+   "x": 377,
+   "y": 1,
+   "px": 63,
+   "py": 147,
+   "pivot_perso": [
+    440,
+    148
+   ]
+  },
+  {
+   "os": "torse",
+   "fichier": "4_torse.png",
+   "w": 219,
+   "h": 253,
+   "x": 385,
+   "y": 95,
+   "px": 70,
+   "py": 225,
+   "pivot_perso": [
+    455,
+    320
+   ]
+  },
+  {
+   "os": "bras_d",
+   "fichier": "5_bras_d.png",
+   "w": 157,
+   "h": 211,
+   "x": 477,
+   "y": 126,
+   "px": 23,
+   "py": 26,
+   "pivot_perso": [
+    500,
+    152
+   ]
+  },
+  {
+   "os": "epee",
+   "fichier": "6_epee.png",
+   "w": 288,
+   "h": 231,
+   "x": 580,
+   "y": 253,
+   "px": 34,
+   "py": 39,
+   "pivot_perso": [
+    614,
+    292
+   ]
+  },
+  {
+   "os": "pagne",
+   "fichier": "7_pagne.png",
+   "w": 109,
+   "h": 184,
+   "x": 412,
+   "y": 276,
+   "px": 50,
+   "py": 20,
+   "pivot_perso": [
+    462,
+    296
+   ]
+  },
+  {
+   "os": "jambe_g",
+   "fichier": "8_jambe_g.png",
+   "w": 141,
+   "h": 258,
+   "x": 361,
+   "y": 299,
+   "px": 71,
+   "py": 27,
+   "pivot_perso": [
+    432,
+    326
+   ]
+  },
+  {
+   "os": "jambe_d",
+   "fichier": "9_jambe_d.png",
+   "w": 125,
+   "h": 214,
+   "x": 471,
+   "y": 322,
+   "px": 57,
+   "py": 4,
+   "pivot_perso": [
+    528,
+    326
+   ]
+  }
+ ]
+}
