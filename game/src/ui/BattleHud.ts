@@ -322,9 +322,9 @@ export class BattleHud extends Emitter<HudEvents> {
       <div class="rstars">${stars}</div>
       <div class="rsub">${stage.id} · ${stage.name} · ${clock(r.time)}</div>
       <div class="rrewards">
-        <div class="rw gold">${icon('coin')}<b data-count="${stage.rewards.gold}">+0</b><small>Or</small></div>
-        <div class="rw gems">${icon('gem')}<b data-count="${stage.rewards.gems}">+0</b><small>Gemmes</small></div>
-        <div class="rw xp">${icon('star')}<b data-count="${stage.rewards.xp}">+0</b><small>Expérience</small></div>
+        <div class="rw gold">${icon('coin')}<b data-count="${outcome?.gold ?? stage.rewards.gold}">+0</b><small>Or</small></div>
+        <div class="rw gems">${icon('gem')}<b data-count="${outcome?.gems ?? stage.rewards.gems}">+0</b><small>Gemmes</small></div>
+        <div class="rw xp">${icon('star')}<b data-count="${outcome?.xp ?? stage.rewards.xp}">+0</b><small>Expérience</small></div>
       </div>
       ${outcome?.drop ? `
       <div class="rloot" style="--rc:${GEAR[outcome.drop.rarity].css}">

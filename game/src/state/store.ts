@@ -1,6 +1,7 @@
 import { gearBonus, itemScore, makeItem, SLOT_LIST, type GearBonus, type Item, type Slot } from '../data/items';
 import { HEROES, STAGES, heroById, levelUpCost, skillTiers, teamPower, tierProgress, type HeroDef, type TeamMember } from '../data/heroes';
 import { COST, ITEMS, performSummon, type PullResult } from '../data/summon';
+import { towerRewards } from '../data/tower';
 import { Emitter } from '../utils/Emitter';
 
 export type Quality = 'ultra' | 'high' | 'low';
@@ -53,6 +54,10 @@ export interface RewardOutcome {
   firstClear: boolean;
   /** Objet tombé à la fin du niveau. */
   drop?: Item | null;
+  /** Ressources réellement gagnées (0 pour une récompense déjà touchée). */
+  gold?: number;
+  gems?: number;
+  xp?: number;
 }
 
 /** Héros possédés : identifiant → nombre d'étoiles. */
@@ -80,6 +85,15 @@ export interface SaveData {
   inventory: Item[];
   /** Objets portés : héros → emplacement → identifiant d'objet. */
   equipped: Record<string, Partial<Record<Slot, string>>>;
+  /** Tour de l'Infini : étage courant et record personnel. */
+  tower: TowerState;
+}
+
+export interface TowerState {
+  /** Prochain étage à gravir. */
+  floor: number;
+  /** Étage le plus haut jamais atteint. */
+  best: number;
 }
 
 /** Cadeau de bienvenue de la v0.5 (aussi offert aux anciennes sauvegardes). */
@@ -113,6 +127,7 @@ const defaults = (): SaveData => ({
   gifts: [],
   inventory: [],
   equipped: {},
+  tower: { floor: 1, best: 0 },
 });
 
 /** Stockage local sécurisé (certains navigateurs / iframes interdisent localStorage). */
@@ -155,6 +170,7 @@ class Store extends Emitter<StoreEvents> {
           gifts: parsed.gifts ?? [],
           inventory: parsed.inventory ?? [],
           equipped: parsed.equipped ?? {},
+          tower: { floor: Math.max(1, parsed.tower?.floor ?? 1), best: Math.max(0, parsed.tower?.best ?? 0) },
         };
       } catch {
         this.data = defaults();
@@ -429,8 +445,37 @@ class Store extends Emitter<StoreEvents> {
     this.persist();
     this.emit('player', p);
     this.emit('campaign', this.data.campaign);
-    return { levelUp, newLevel: p.level, firstClear, drop };
+    return { levelUp, newLevel: p.level, firstClear, drop, gold: rewards.gold, gems: rewards.gems, xp: rewards.xp };
   }
+  /* ====================== Tour de l'Infini ====================== */
+
+  get towerFloor(): number { return this.data.tower.floor; }
+  get towerBest(): number { return this.data.tower.best; }
+
+  /**
+   * Enregistre le résultat d'un étage.
+   * Première victoire : or + gemmes + XP + objet. Été déjà conquis : XP seule.
+   * Défaite : rien ne bouge — on ne perd jamais de progression dans la Tour.
+   */
+  completeTower(floor: number, win: boolean): RewardOutcome | null {
+    if (!win) return null;
+    const p = this.data.player;
+    const firstClear = floor > this.data.tower.best;
+    const rw = towerRewards(floor);
+    const xp = firstClear ? rw.xp : Math.round(rw.xp * 0.35);
+    if (firstClear) {
+      p.gold += rw.gold;
+      p.gems += rw.gems;
+    }
+    const levelUp = this.addXp(xp);
+    const drop = firstClear ? this.dropItem(Math.min(40, Math.round(floor * 0.7))) : null;
+    this.data.tower.best = Math.max(this.data.tower.best, floor);
+    this.data.tower.floor = Math.max(this.data.tower.floor, floor + 1);
+    this.persist();
+    this.emit('player', p);
+    return { levelUp, newLevel: p.level, firstClear, drop, gold: firstClear ? rw.gold : 0, gems: firstClear ? rw.gems : 0, xp };
+  }
+
   get settings(): Readonly<Settings> { return this.data.settings; }
 
   updatePlayer(patch: Partial<PlayerState>): void {

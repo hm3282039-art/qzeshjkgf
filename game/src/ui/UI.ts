@@ -1,5 +1,5 @@
 import { TALKERS } from '../data/npcLines';
-import { ART, CHAPTER1_BG, GEAR_ART, PORTRAITS, SCENE_BG } from '../assets';
+import { ART, GEAR_ART, PORTRAITS, SCENE_BG } from '../assets';
 import { BUILDINGS, type BuildingDef } from '../data/buildings';
 import { GEAR, SLOT_LIST, SUB_LABEL, mainLabel, type Slot } from '../data/items';
 import { BONDS, CLASSES, CLASS_LIST, classBeatenBy, classCounts, classMultiplier, CLASS_SYNERGY, HEROES, heroPower, levelStatMult, levelUpCost, skillTiers, starMult, STAGE_PROFILE_TEXT, STAGES, stageProfile, teamPower, tierBonusPct, type HeroClass, type HeroDef, type StageDef, type UnitDef } from '../data/heroes';
@@ -13,12 +13,14 @@ import { ROLE_ICON } from './roles';
 import { starsHTML } from './stars';
 import { canFullscreen, inIframe, isFullscreen, toggleFullscreen } from './fullscreen';
 import { collectionText, SummonScreen } from './Summon';
+import { towerRewards, towerStage, towerTier } from '../data/tower';
 
 export type UIEvents = {
   labelHover: { id: string; hovered: boolean };
   selectBuilding: string;
   recenter: void;
   startStage: string;
+  startTower: number;
 };
 
 /** Un niveau est jouable si le précédent a été gagné. */
@@ -49,6 +51,7 @@ const RIGHT_MENU: MenuEntry[] = [
 
 const NAV: Array<MenuEntry & { main?: boolean }> = [
   { id: 'campaign', label: 'Campagne', icon: 'map', description: '' },
+  { id: 'tower', label: 'Tour', icon: 'tower', description: 'La Tour de l’Infini : des étages sans fin, sans énergie, et un record à battre.' },
   { id: 'heroes', label: 'Héros', icon: 'helmet', description: 'Gère ta collection de héros, leur niveau et leur équipement.' },
   { id: 'city', label: 'Ville', icon: 'castle', main: true, description: '' },
   { id: 'bag', label: 'Sac', icon: 'bag', badge: true, description: 'Ton inventaire : objets, fragments et matériaux.' },
@@ -271,6 +274,7 @@ export class UI extends Emitter<UIEvents> {
       if (nav === 'city') { this.emit('recenter', undefined); return; }
       if (nav === 'campaign') { this.openCampaign(); return; }
       if (nav === 'heroes') { this.openHeroes(); return; }
+      if (nav === 'tower') { this.openTower(); return; }
       const n = NAV.find((x) => x.id === nav);
       if (n) this.openInfo(n.label, n.icon, 'Menu', n.description);
     }
@@ -498,20 +502,121 @@ export class UI extends Emitter<UIEvents> {
 
   /* ================= Campagne ================= */
 
+  /* ====================== Tour de l'Infini ====================== */
+
+  /**
+   * Écran de la Tour.
+   *
+   * Le mode est volontairement nu : un étage, un record, une composition ennemie,
+   * une récompense. Pas d'énergie, pas de perte en cas de défaite — on vient
+   * repousser sa limite, pas gérer une ressource.
+   */
+  openTower(): void {
+    const floor = Math.max(1, store.towerFloor);
+    const best = store.towerBest;
+    const st = towerStage(floor);
+    const rewards = towerRewards(floor);
+    const firstClear = floor > best;
+    const isBoss = floor % 5 === 0;
+
+    const foes: string[] = [];
+    const seen = new Set<string>();
+    for (const e of st.enemies) {
+      if (seen.has(e.def.id)) continue;
+      seen.add(e.def.id);
+      foes.push(`<div class="tw-foe ${e.boss ? 'boss' : ''}">
+        <img src="${ART[(e.def as UnitDef).texture]}" alt="" draggable="false"/>
+        <span>${e.def.name}</span>${e.boss ? '<em>BOSS</em>' : ''}
+      </div>`);
+    }
+
+    const team = store.team();
+    const power = teamPower(team);
+    const modal = this.openModal(`
+      <div class="modal-medal">${icon('tower')}</div>
+      <h2>Tour de l'Infini</h2>
+      <div class="subtitle">Aucun dernier étage. Aucune énergie dépensée. Une défaite ne coûte rien.</div>
+      <div class="tw-head">
+        <div class="tw-floor"><small>Étage</small><b>${floor}</b></div>
+        <div class="tw-meta">
+          <div><span>Record personnel</span><b>${best ? `Étage ${best}` : '—'}</b></div>
+          <div><span>Palier</span><b>${best ? `+${floor - best} au-dessus` : 'Premier passage'}</b></div>
+          <div><span>Difficulté</span><b>${isBoss ? 'Gardien' : `×${(Math.pow(1.21, towerTier(floor))).toFixed(1)} PV`}</b></div>
+        </div>
+      </div>
+      <div class="tw-bar"><i style="--w:${Math.min(100, (floor % 5) * 20)}%"></i><span>${5 - (floor % 5) || 5} étage(s) avant le prochain gardien</span></div>
+      <div class="cd-sec">Ce qui t'attend</div>
+      <div class="tw-foes">${foes.join('')}</div>
+      <div class="cd-sec">Récompense ${firstClear ? '<span class="cd-first">1<sup>re</sup> victoire</span>' : '<span class="cd-first">étage déjà conquis</span>'}</div>
+      <div class="cd-rewards">
+        ${firstClear
+          ? `<span>${icon('coin')} ${rewards.gold}</span><span>${icon('gem')} ${rewards.gems}</span><span>${icon('star')} ${rewards.xp} XP</span>`
+          : `<span>${icon('star')} ${Math.round(rewards.xp * 0.35)} XP</span><span class="tw-note">or et gemmes déjà touchés</span>`}
+      </div>
+      <div class="cd-power ${power >= st.power ? 'ok' : 'low'}">${icon('swords')} ${power.toLocaleString('fr-FR')} <small>/ conseillé ${st.power.toLocaleString('fr-FR')}</small></div>
+      <button class="btn big fight" data-tower="${floor}">${icon('tower')} Gravir l'étage ${floor}</button>`,
+    '#8a4dffaa', 'xl');
+
+    modal.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const go = t.closest<HTMLElement>('[data-tower]');
+      if (!go) return;
+      audio.click();
+      const f = Number(go.dataset.tower) || 1;
+      const stage = towerStage(f);
+      this.formation.open(stage, () => this.emit('startTower', f));
+    });
+  }
+
+  /** Chapitre affiché dans la campagne (mémorisé entre deux ouvertures). */
+  private campChapter: number | null = null;
+
+  /** Nom des chapitres ; tout chapitre non listé reçoit un nom générique. */
+  private static readonly CHAPTER_NAMES: Record<number, string> = {
+    1: 'Les Faubourgs Maudits',
+    2: 'Le Royaume de Cendre',
+  };
+
+  private static readonly ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
   openCampaign(selectId?: string): void {
-    const nodes = [
-      { id: '1-1', x: 12, y: 70 }, { id: '1-2', x: 31, y: 44 }, { id: '1-3', x: 50, y: 66 },
-      { id: '1-4', x: 69, y: 38 }, { id: '1-5', x: 88, y: 58, boss: true },
-    ];
-    const path = nodes.map((n, i) => `${i ? 'L' : 'M'}${n.x} ${n.y}`).join(' ');
-    let selected = STAGES.find((st) => st.id === selectId && unlocked(st)) ?? this.nextStage();
+    const chapterOf = (id: string): number => Number(id.split('-')[0]) || 1;
+    const chapters = [...new Set(STAGES.map((st) => chapterOf(st.id)))].sort((a, b) => a - b);
+    const inChapter = (c: number): StageDef[] => STAGES.filter((st) => chapterOf(st.id) === c);
+    const next = this.nextStage();
+
+    // On ouvre sur le chapitre du niveau demandé, sinon sur celui du prochain niveau à jouer.
+    let chapter = selectId ? chapterOf(selectId) : (this.campChapter ?? chapterOf(next.id));
+    if (!chapters.includes(chapter)) chapter = chapters[0] ?? 1;
+    this.campChapter = chapter;
+
+    /** Position des nœuds : une route en zigzag, calculée selon le nombre de niveaux. */
+    const layout = (c: number): Array<{ id: string; x: number; y: number; boss: boolean }> => {
+      const list = inChapter(c);
+      return list.map((st, i) => ({
+        id: st.id,
+        x: 12 + (76 * i) / Math.max(1, list.length - 1),
+        y: i % 2 ? 38 : 58,
+        boss: st.enemies.some((e) => e.boss),
+      }));
+    };
+
+    let nodes = layout(chapter);
+    const pathOf = (n: Array<{ x: number; y: number }>): string => n.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ');
+
+    let selected = (selectId ? STAGES.find((st) => st.id === selectId) : undefined)
+      ?? inChapter(chapter).find((st) => unlocked(st) && !(store.campaign[st.id] ?? 0))
+      ?? inChapter(chapter)[0]
+      ?? next;
+
     const modal = this.openModal(`
       <div class="modal-medal">${icon('map')}</div>
       <h2>Campagne</h2>
-      <div class="subtitle">Chapitre 1 · Les Faubourgs Maudits</div>
+      <div class="subtitle camp-sub"></div>
+      <div class="camp-tabs"></div>
       <div class="camp">
-        <div class="camp-map" style="--map:url('${CHAPTER1_BG}')">
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="camp-path"><path d="${path}"/></svg>
+        <div class="camp-map">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="camp-path"><path d="${pathOf(nodes)}"/></svg>
           <div class="camp-nodes"></div>
           <div class="camp-fog"></div>
         </div>
@@ -519,19 +624,42 @@ export class UI extends Emitter<UIEvents> {
       </div>`, '#c2183caa', 'xl');
     const nodesEl = modal.querySelector<HTMLElement>('.camp-nodes')!;
     const detail = modal.querySelector<HTMLElement>('.camp-detail')!;
+    const tabsEl = modal.querySelector<HTMLElement>('.camp-tabs')!;
+    const subEl = modal.querySelector<HTMLElement>('.camp-sub')!;
+    const mapEl = modal.querySelector<HTMLElement>('.camp-map')!;
+    const pathEl = modal.querySelector<SVGPathElement>('.camp-path path')!;
 
-    const render = () => {
+    const renderTabs = (): void => {
+      tabsEl.innerHTML = chapters.map((c) => {
+        const list = inChapter(c);
+        const opened = list.some((st) => unlocked(st));
+        const done = list.filter((st) => (store.campaign[st.id] ?? 0) > 0).length;
+        const name = UI.CHAPTER_NAMES[c] ?? `Chapitre ${c}`;
+        return `<button class="camp-tab${c === chapter ? ' active' : ''}${opened ? '' : ' locked'}" ${opened ? `data-ch="${c}"` : `data-locked="req"`}>
+          <b>${UI.ROMAN[c - 1] ?? c}</b><span>${name}</span><em>${done}/${list.length}</em>
+        </button>`;
+      }).join('');
+    };
+
+    const render = (): void => {
+      renderTabs();
+      const list = inChapter(chapter);
+      const done = list.filter((st) => (store.campaign[st.id] ?? 0) > 0).length;
+      subEl.textContent = `Chapitre ${UI.ROMAN[chapter - 1] ?? chapter} · ${UI.CHAPTER_NAMES[chapter] ?? 'Les Terres Perdues'} · ${done}/${list.length} niveaux`;
+      mapEl.style.setProperty('--map', `url('${SCENE_BG[list[0]?.scene ?? 'gallows']}')`);
+
       nodesEl.innerHTML = nodes.map((n) => {
         const st = STAGES.find((x) => x.id === n.id);
         const open = !!st && unlocked(st);
-        const s = store.campaign[n.id] ?? 0;
-        const cls = `${open ? 'open' : 'locked'} ${st?.id === selected.id ? 'selected' : ''} ${n.boss ? 'boss' : ''} ${s ? 'cleared' : ''}`;
+        const stars = store.campaign[n.id] ?? 0;
+        const cls = `${open ? 'open' : 'locked'} ${st?.id === selected.id ? 'selected' : ''} ${n.boss ? 'boss' : ''} ${stars ? 'cleared' : ''}`;
         return `<button class="camp-node ${cls}" style="left:${n.x}%;top:${n.y}%" ${open ? `data-stage="${n.id}"` : `data-locked="${st ? 'req' : 'soon'}"`}>
           <span class="cn-ring">${open ? icon('swords') : n.boss ? icon('skull') : icon('lock')}</span>
           <b>${n.id}</b>
-          ${open ? `<span class="cn-stars">${[1, 2, 3].map((i) => `<i class="${i <= s ? 'on' : ''}">★</i>`).join('')}</span>` : `<small>${st ? `Gagne ${st.requires}` : 'Bientôt'}</small>`}
+          ${open ? `<span class="cn-stars">${[1, 2, 3].map((i) => `<i class="${i <= stars ? 'on' : ''}">★</i>`).join('')}</span>` : `<small>${st?.requires ? `Gagne ${st.requires}` : 'Bientôt'}</small>`}
         </button>`;
       }).join('');
+
       const st = selected;
       const stars = store.campaign[st.id] ?? 0;
       const seen = new Set<string>();
@@ -572,13 +700,28 @@ export class UI extends Emitter<UIEvents> {
 
     modal.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
+      const tab = t.closest<HTMLElement>('[data-ch]');
       const node = t.closest<HTMLElement>('[data-stage]');
       const locked = t.closest<HTMLElement>('[data-locked]');
+      if (tab) {
+        const c = Number(tab.dataset.ch);
+        if (c !== chapter) {
+          chapter = c;
+          this.campChapter = c;
+          nodes = layout(chapter);
+          pathEl.setAttribute('d', pathOf(nodes));
+          const list = inChapter(chapter);
+          selected = list.find((st) => unlocked(st) && !(store.campaign[st.id] ?? 0)) ?? list[0] ?? next;
+          audio.hover();
+          render();
+        }
+        return;
+      }
       if (node) {
         const st = STAGES.find((x) => x.id === node.dataset.stage);
         if (st && st !== selected) { selected = st; audio.hover(); render(); }
       } else if (locked) {
-        this.toast(locked.dataset.locked === 'req' ? 'Gagne d’abord le niveau précédent !' : 'Ce niveau arrive bientôt !');
+        this.toast(locked.dataset.locked === 'req' ? 'Termine le niveau précédent !' : 'Ce contenu arrive bientôt !');
       } else if (t.closest('[data-start]')) {
         audio.click();
         const st = selected;

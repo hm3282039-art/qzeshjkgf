@@ -17,6 +17,7 @@ import { applyCursors, CURSORS } from './ui/cursors';
 import { BattleScene } from './battle/BattleScene';
 import { BattleHud } from './ui/BattleHud';
 import { STAGES, type StageDef } from './data/heroes';
+import { isTowerStage, towerFloorOf, towerStage } from './data/tower';
 import { hookFullscreen, inIframe } from './ui/fullscreen';
 import { installAdmin } from './ui/admin';
 
@@ -202,6 +203,17 @@ async function boot(): Promise<void> {
     hud.show(stage, battle.sim!, store.settings.battleAuto, store.settings.battleSpeed);
   };
 
+  const enterTower = (floor: number) => {
+    const stage = towerStage(floor);
+    audio.whoosh();
+    transition(() => {
+      ui.closeModal(true);
+      game.root.visible = false;
+      audio.setMode('battle');
+      launch(stage);
+    });
+  };
+
   const enterBattle = (stageId: string) => {
     const stage = STAGES.find((s) => s.id === stageId);
     if (!stage) return;
@@ -229,13 +241,20 @@ async function boot(): Promise<void> {
   };
 
   ui.on('startStage', enterBattle);
+  ui.on('startTower', enterTower);
   battle.on('cutin', (u) => hud.cutin(u));
   battle.on('banner', ({ text, kind }) => hud.banner(text, kind));
   battle.on('bossTitle', ({ name, title }) => hud.bossTitle(name, title));
   battle.on('bond', ({ name, line }) => hud.bond(name, line));
   battle.on('finished', (r) => {
     if (!currentStage) return;
-    const outcome = r.winner === 'hero' ? store.completeStage(currentStage.id, r.stars, currentStage.rewards, currentStage.energy) : null;
+    const tower = isTowerStage(currentStage.id);
+    const outcome = r.winner === 'hero'
+      ? (tower
+        ? store.completeTower(towerFloorOf(currentStage.id), true)
+        : store.completeStage(currentStage.id, r.stars, currentStage.rewards, currentStage.energy))
+      : null;
+    if (tower && r.winner !== 'hero') store.completeTower(towerFloorOf(currentStage.id), false);
     hud.showResult(r, currentStage, outcome);
   });
   hud.on('ult', (uid) => {
