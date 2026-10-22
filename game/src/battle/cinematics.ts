@@ -476,6 +476,121 @@ export class CineDirector {
         break;
       }
 
+      /* ---------- Mira : la mécanique se remonte, le verre converge ---------- */
+      case 'mira': {
+        const ring = new Sprite(s.bt.rune);
+        ring.anchor.set(0.5);
+        ring.tint = 0x4ae0c8;
+        ring.blendMode = 'add';
+        ring.position.set(u.x + 40, u.y + 6);
+        s.anim(ring, s.groundFx, D, (k) => {
+          const sc = 0.35 + k * 0.7;
+          ring.scale.set(sc, sc * 0.34);
+          ring.rotation = k * 2.6;
+          ring.alpha = Math.min(1, k * 3) * (1 - k * 0.45);
+        }, true);
+        // Les éclats de verre noir remontent vers la bouche de l'arbalète.
+        for (let i = 0; i < 16; i++) {
+          this.later(i * 0.032, () => {
+            if (!s.fighting) return;
+            const a = rand(0, Math.PI * 2);
+            const r = rand(150, 330);
+            const sx = u.x + Math.cos(a) * r;
+            const sy = u.y - 150 + Math.sin(a) * r * 0.55;
+            const tx = u.x + 76;
+            const ty = u.y - 160;
+            const st = new Sprite(s.bt.streak);
+            st.anchor.set(0.5);
+            st.tint = i % 3 ? 0x9afff0 : 0xffffff;
+            st.blendMode = 'add';
+            st.position.set(sx, sy);
+            st.rotation = Math.atan2(ty - sy, tx - sx);
+            s.anim(st, s.fxLayer, 0.3, (k) => {
+              st.x = sx + (tx - sx) * k;
+              st.y = sy + (ty - sy) * k;
+              st.scale.set(0.85, 0.3);
+              st.alpha = k < 0.75 ? 1 : (1 - k) * 4;
+            }, true);
+          });
+        }
+        for (let i = 0; i < 8; i++) s.debris.burst(1, u.x + rand(-90, 90), u.y + rand(-8, 8), 0x8afff0);
+        break;
+      }
+
+      /* ---------- Corvin : la lumière tombe, les plumes noires tournoient ---------- */
+      case 'corvin': {
+        const beam = new Sprite(s.bt.beam);
+        beam.anchor.set(0.5, 1);
+        beam.tint = 0xffe9a8;
+        beam.blendMode = 'add';
+        beam.position.set(u.x, u.y + 8);
+        s.anim(beam, s.groundFx, D, (k) => {
+          const w = 1.2 + k * 1.1;
+          const h = 3 + Math.sin(k * Math.PI) * 3.4;
+          beam.scale.set(w, h);
+          beam.alpha = Math.min(1, k * 2.2) * (1 - Math.pow(k, 2.4));
+        }, true);
+        const seal = new Sprite(s.bt.sigil);
+        seal.anchor.set(0.5);
+        seal.tint = 0xe3c077;
+        seal.blendMode = 'add';
+        seal.position.set(u.x, u.y + 4);
+        s.anim(seal, s.groundFx, D + 0.2, (k) => {
+          const sc = 0.5 + k * 1.5;
+          seal.scale.set(sc, sc * 0.36);
+          seal.alpha = 0.8 * (1 - k * 0.35);
+        }, true);
+        for (let i = 0; i < 14; i++) {
+          this.later(i * 0.05, () => {
+            if (!s.fighting) return;
+            const a = rand(0, Math.PI * 2);
+            const r = rand(110, 300);
+            const fe = new Sprite(s.bt.feather);
+            fe.anchor.set(0.5);
+            fe.tint = i % 4 ? 0x241c2c : 0xffe9a8;
+            fe.position.set(u.x + Math.cos(a) * r, u.y - rand(180, 420));
+            fe.rotation = rand(0, 6);
+            s.anim(fe, s.fxLayer, 1.0, (k) => {
+              fe.y += 2.1;
+              fe.x += Math.sin(k * 6 + i) * 0.9;
+              fe.rotation += 0.03;
+              fe.scale.set(0.55);
+              fe.alpha = Math.min(1, k * 3) * (1 - k);
+            }, true);
+          });
+        }
+        break;
+      }
+
+      /* ---------- Elara : trois glas, des cierges, des colombes ---------- */
+      case 'elara': {
+        for (let i = 0; i < 3; i++) {
+          this.later(i * 0.22, () => {
+            if (!s.fighting) return;
+            const ring = new Sprite(s.fx.ring);
+            ring.anchor.set(0.5);
+            ring.tint = i === 0 ? 0xfff6d0 : 0xd8c48a;
+            ring.blendMode = 'add';
+            ring.position.set(u.x, u.y + 6);
+            s.anim(ring, s.groundFx, D - i * 0.14, (k) => {
+              const sc = 0.3 + k * 2.3;
+              ring.scale.set(sc, sc * 0.32);
+              ring.alpha = (1 - k) * 0.7;
+            }, true);
+          });
+        }
+        s.feathers.burst(12, u.x, u.y - 210);
+        for (let i = 0; i < 20; i++) {
+          this.later(rand(0, 0.95), () => {
+            if (!s.fighting) return;
+            const a = rand(0, Math.PI * 2);
+            const rad = rand(28, 140);
+            s.motes.burst(1, u.x + Math.cos(a) * rad, u.y - rand(0, 70), 0xfff0c0);
+          });
+        }
+        break;
+      }
+
       /* ---------- Aldric : le sanctuaire s'ouvre ---------- */
       default: {
         const rays = new Sprite(s.fx.rays);
@@ -689,6 +804,9 @@ export class CineDirector {
       case 'vaelen': return this.vaelen(u);
       case 'sylvaine': return this.sylvaine(u);
       case 'pyrrha': return this.pyrrha(u);
+      case 'mira': return this.mira(u);
+      case 'corvin': return this.corvin(u);
+      case 'elara': return this.elara(u);
       default: return this.aldric(u);
     }
   }
@@ -1369,6 +1487,164 @@ export class CineDirector {
           s.rgbSplit(10, 0.22);
           if (meteors <= 1) s.impactFrame(0.1, 0xffd0a0);
         }
+      },
+    };
+  }
+
+  /**
+   * Mira — Salve de Forge.
+   * Lecture : on colle à l'arme, puis chaque trait est une coupe franche alternée
+   * (épaule de Mira → impact chez la cible). Six tirs, six images, un rechargement.
+   */
+  private mira(u: Unit): UltScript {
+    const s = this.s;
+    const f = u.facing;
+    let shots = 0;
+    return {
+      max: 2.6,
+      start: () => {
+        s.setTimeScale(0.6, 12);
+        s.dimTarget = 0.4;
+        s.cam.follow = () => ({ x: u.x + f * 110, y: u.y - 150 });
+        s.cam.go({ zoom: 1.24, roll: -f * 0.05, pitch: 0.08, yaw: f * 0.05 }, 5, 4);
+        s.speedLinesOn(0.4, 0.8, 0x7afff0);
+      },
+      update: (_t, dt) => {
+        this.ghostAcc += dt;
+        if (this.ghostAcc > 0.07) { this.ghostAcc = 0; s.afterimage(u, 0x4ae0c8, 0.2, 0.24); }
+        if (Math.random() < 0.45) s.sparks.burst(1, u.x + f * 76 + rand(-16, 16), u.y - 158 + rand(-12, 12), 0x9afff0);
+      },
+      onFx: (e) => {
+        if (e.type === 'mira_shot') {
+          shots++;
+          const v = s.view(e.target);
+          s.cam.follow = null;
+          s.hitstop(0.018);
+          s.cam.punch(0.03 + shots * 0.006);
+          s.cam.shake(0.12);
+          if (v) {
+            // Une coupe sur deux montre l'impact : le reste appartient à Mira.
+            if (shots % 2 === 1) {
+              s.cam.cut({ x: v.chest.x - f * 40, y: v.chest.y, zoom: 1.55, roll: f * 0.04, pitch: 0.05, yaw: -f * 0.03 });
+            } else {
+              s.cam.cut({ x: u.x + f * 54, y: u.y - 152, zoom: 1.38, roll: -f * 0.06, pitch: 0.07, yaw: f * 0.05 });
+            }
+            s.zoomBlurAt(v.chest.x, v.chest.y, 0.06, 0.22);
+          }
+          if (shots === 6) {
+            s.impactFrame(0.12, 0x9afff0);
+            s.rgbSplit(8, 0.2);
+            s.flashScreen(0x7afff0, 0.18);
+          }
+          return;
+        }
+        if (e.type === 'mira_reload') {
+          // La vapeur du chargeur, et la caméra qui s'écarte : le travail est fait.
+          const v = s.view(u);
+          const c = v ? v.chest : { x: u.x, y: u.y - 150 };
+          for (let i = 0; i < 10; i++) s.smoke.burst(1, c.x + rand(-24, 24), c.y + rand(-24, 24), 0xbfe8ff);
+          s.cam.follow = null;
+          s.cam.go({ x: u.x + f * 140, y: u.y - 200, zoom: 1.02, roll: 0, pitch: 0.06, yaw: 0 }, 3);
+          s.setTimeScale(1, 5);
+          this.at(0.8, () => this.endB());
+        }
+      },
+    };
+  }
+
+  /**
+   * Corvin — Jugement Différé.
+   * Lecture : la lumière s'accumule dans la lame (contre-plongée immobile), puis la
+   * sentence tombe : travelling latéral qui accompagne le balayage, et l'équipe s'illumine.
+   */
+  private corvin(u: Unit): UltScript {
+    const s = this.s;
+    const f = u.facing;
+    let struck = false;
+    return {
+      max: 2.7,
+      start: () => {
+        s.setTimeScale(0.55, 10);
+        s.dimTarget = 0.5;
+        s.cam.follow = () => ({ x: u.x + f * 70, y: u.y - 180 });
+        s.cam.go({ zoom: 1.45, roll: f * 0.03, pitch: -0.07, yaw: -f * 0.04 }, 4.5, 4);
+      },
+      update: () => {
+        if (!struck && Math.random() < 0.5) s.motes.burst(1, u.x + rand(-70, 70), u.y - rand(170, 300), 0xffe9a8);
+      },
+      onFx: (e) => {
+        if (e.type !== 'corvin_judgement' || struck) return;
+        struck = true;
+        const x = e.x ?? u.x;
+        const y = e.y ?? u.y;
+        s.cam.follow = null;
+        s.impactFrame(0.14, 0xfff6d0);
+        s.setTimeScale(0.14, Infinity);
+        // Le balayage part de lui et file vers la droite : la caméra le suit.
+        s.cam.cut({ x: x + 240, y: y - 175, zoom: 1.14, roll: 0.02, pitch: 0.05, yaw: 0.02 });
+        s.cam.go({ x: x + 540, y: y - 150, zoom: 1.04, roll: 0, pitch: 0.03, yaw: 0 }, 1.7);
+        s.rgbSplit(12, 0.3);
+        s.cam.shake(0.8);
+        s.flashScreen(0xfff6d0, 0.3);
+        this.later(0.3, () => s.setTimeScale(1, 4));
+        // Les alliés relevés s'allument un par un.
+        const allies = s.sim?.units.filter((a) => a.alive && a.side === 'hero') ?? [];
+        allies.forEach((a, i) => {
+          const v = s.view(a);
+          if (!v) return;
+          this.later(0.06 * i, () => {
+            s.fxSprite(s.bt.star, v.chest.x, v.chest.y, { tint: 0xfff0c0, life: 0.7, scale: [0.3, 0.95], alpha: [0.9, 0], vrot: 1.2 });
+            s.motes.burst(6, v.chest.x, v.chest.y, 0xfff6d0);
+          });
+        });
+        this.at(1.1, () => this.endB());
+      },
+    };
+  }
+
+  /**
+   * Elara — Chœur des Sept.
+   * Lecture : gros plan sur le voile, puis la caméra s'élève et recule d'un coup pour
+   * révéler toute l'équipe baignée de lumière — l'ultime est un soin, il doit se voir large.
+   */
+  private elara(u: Unit): UltScript {
+    const s = this.s;
+    const f = u.facing;
+    let sang = false;
+    return {
+      max: 3,
+      start: () => {
+        s.setTimeScale(0.45, 8);
+        s.dimTarget = 0.45;
+        s.cam.follow = () => ({ x: u.x + f * 40, y: u.y - 210 });
+        s.cam.go({ x: u.x + f * 40, y: u.y - 235, zoom: 1.32, roll: -f * 0.02, pitch: 0.1, yaw: f * 0.03 }, 3.6, 3);
+        for (let i = 0; i < 10; i++) s.feathers.burst(1, u.x + rand(-320, 320), u.y - rand(420, 700));
+      },
+      update: () => {
+        if (Math.random() < 0.5) s.motes.burst(1, u.x + rand(-260, 260), u.y + rand(-90, 30), 0xfff0c0);
+      },
+      onFx: (e) => {
+        if (e.type !== 'elara_wave' || sang) return;
+        sang = true;
+        s.cam.follow = null;
+        const allies = e.targets ?? [];
+        const c = centroid(allies.length ? allies : [u]);
+        s.setTimeScale(0.35, 10);
+        // Plan large : le soin d'équipe se lit d'un seul regard.
+        s.cam.go({ x: c.x + 40, y: c.y - 250, zoom: 0.94, roll: 0, pitch: 0.06, yaw: 0 }, 2.4);
+        s.flashScreen(0xfff6d0, 0.25);
+        s.shockwave(c.x, c.y, 1.2);
+        for (let i = 0; i < 22; i++) s.feathers.burst(1, c.x + rand(-520, 520), c.y - rand(300, 800));
+        allies.forEach((a, i) => {
+          const v = s.view(a);
+          if (!v) return;
+          this.later(0.05 * i, () => {
+            s.fxSprite(s.bt.sigil, v.chest.x, v.chest.y, { tint: 0xfff0c0, life: 0.9, scale: [0.3, 1.4], alpha: [0.9, 0], vrot: 0.8 });
+            s.motes.burst(8, v.chest.x, v.chest.y, 0xfff6d0);
+          });
+        });
+        this.later(0.5, () => s.setTimeScale(1, 5));
+        this.at(1.2, () => this.endB());
       },
     };
   }

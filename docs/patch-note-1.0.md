@@ -418,7 +418,20 @@ Les trois ont leur planche peinte, leur squelette d'animation, leurs effets prop
 
 Les faisceaux de Mira et de Corvin étaient étirés par un réglage d'échelle mal converti : ils apparaissaient trop courts ou mal orientés. L'épaisseur et la longueur sont maintenant calculées sur la vraie taille de la texture. Le trait de Mira traverse l'écran, le rideau de lumière de Corvin tombe du ciel.
 
-## 8. Vérification
+
+## 8. Trois scènes d’ultime qui n’existaient pas
+
+Mira, Corvin et Elara avaient leurs effets de combat, mais pas leur **mise en scène**. Leurs ultimes empruntaient la séquence d'Aldric : un cercle doré, des plumes, et voilà. Depuis, chacun a la sienne — élan compris.
+
+| Héros | L'élan (1,4 s) | L'exécution |
+|---|---|---|
+| **Mira** | Un cercle de visée tourne sous elle, les éclats de verre noir remontent vers l'arbalète, les boulons tremblent au sol | Six tirs, six **coupes franches** alternées (épaule de Mira / impact chez la cible), secousse qui monte à chaque trait, image d'impact sur le sixième, puis la vapeur du chargeur et la caméra qui s'écarte |
+| **Corvin** | Un pilier de lumière tombe du ciel, le sceau s'élargit sous ses pieds, des plumes noires tournoient | Contre-plongée immobile pendant la charge, puis **travelling latéral** qui accompagne la lame de lumière, ralentissement à 0,14×, éclat blanc, et chaque allié s'allume un par un en récupérant ses PV |
+| **Elara** | Trois glas concentriques, des cierges qui s'allument, des colombes qui montent | La caméra **s'élève et recule** d'un coup pour révéler toute l'équipe : anneaux au sol, plumes, sceaux sur chaque allié soigné |
+
+C'est la même grammaire que les quatorze autres héros : une signature pendant l'élan, un plan précis pendant l'exécution, et une retombée lisible derrière.
+
+## 9. Vérification
 
 **17 héros** au total. Tournoi automatique (médiane 68) : Vaelen 85 · Gorm 84 · Kael 81 · Pyrrha 77 · Aldric 76 · Orlan 72 · **Corvin 71** · **Elara 69** · Vespera 68 · Nyx 68 · Thorne 66 · Lyra 65 · **Mira 64** · Seren 62 · Morwen 61 · Sylvaine 60 · Ashka 55.
 
