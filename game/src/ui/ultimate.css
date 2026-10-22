@@ -449,3 +449,39 @@
 
 /* Conteneur de la cinématique pendant le combat. */
 .ult-host { position: absolute; inset: 0; pointer-events: none; z-index: 60; }
+
+/* ═══════════════════ SÉLECTEUR DE MODE (laboratoire) ═══════════════════ */
+.lab-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.lab-mode { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.5rem 0.8rem; text-align: left;
+  border-radius: 0.45rem; border: 1px solid #33284a; background: linear-gradient(180deg, #150f24, #0b0814);
+  transition: 0.15s; }
+.lab-mode b { font-size: 0.8rem; color: #d9cff0; letter-spacing: 0.03em; }
+.lab-mode span { font-size: 0.62rem; color: #7d719b; }
+.lab-mode:hover { border-color: #6a4a9a; }
+.lab-mode.on { border-color: #ffd36a; background: linear-gradient(180deg, #241a08, #130d06);
+  box-shadow: 0 0 1rem rgba(255,211,106,.25), inset 0 0 1.6rem rgba(255,211,106,.08); }
+.lab-mode.on b { color: #ffe9b0; }
+.lab-style.off { opacity: 0.4; }
+.lab-style.off .ls-letter { background: #3a3050; color: #7d719b; }
+
+/* ── Timeline du laboratoire : les 5 actes sous la scène ─────────────────── */
+.lab-stage { isolation: isolate; }
+.lab-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 80;
+  background: rgba(255,255,255,.08); opacity: 0; transition: opacity .2s; }
+.lab-prog i { display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, #6a4a9a, #ffd36a 60%, #fff);
+  box-shadow: 0 0 0.8rem #ffd36a; }
+@keyframes lab-fill { from { width: 0; } to { width: 100%; } }
+
+.lab-time { position: absolute; left: 0; right: 0; bottom: 0; height: 0; z-index: 81;
+  opacity: 0; transition: opacity .2s; pointer-events: none; }
+.lab-act { position: absolute; bottom: 0.9rem; text-shadow: 0 1px 3px #000; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 0.05rem;
+  font-family: var(--font-title); letter-spacing: 0.14em; text-transform: uppercase;
+  font-size: 0.52rem; color: #6c6088; transition: color .18s, transform .18s; }
+.lab-act b { font-weight: 800; }
+.lab-act span { font-size: 0.46rem; opacity: 0.6; }
+.lab-act::after { content: ''; width: 1px; height: 0.35rem; background: currentColor; opacity: 0.5; order: -1; }
+.lab-act.first { left: 0.4rem !important; transform: none; align-items: flex-start; }
+.lab-act.past { color: #ffe9b0; transform: translateX(-50%) translateY(-1px); }
+.lab-act.past::after { opacity: 1; box-shadow: 0 0 0.5rem #ffd36a; }

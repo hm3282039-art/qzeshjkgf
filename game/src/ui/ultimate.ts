@@ -18,6 +18,63 @@ import { signatureOf, type Motif } from './signatures';
 
 export type UltStyle = 'cinema' | 'comics' | 'rituel' | 'holo';
 
+/**
+ * Famille d'action de l'ultime. Ce n'est pas la classe du héros : c'est ce que
+ * l'ultime FAIT (lire son texte). Une cinématique de « coup au sol » n'a rien à
+ * voir avec une « pluie du ciel », et c'est ce qui empêche les 27 scènes de se
+ * ressembler.
+ */
+export type Archetype = 'slam' | 'dash' | 'storm' | 'bless' | 'void' | 'line';
+
+export interface ArchetypeDef {
+  id: Archetype;
+  label: string;
+  /** Ce que la scène montre, en une phrase (labo). */
+  show: string;
+}
+
+export const ARCHETYPES: readonly ArchetypeDef[] = [
+  { id: 'slam', label: 'Coup au sol', show: 'Le héros bondit, retombe, le sol se fend, l’onde part au sol.' },
+  { id: 'dash', label: 'Traversée', show: 'Le héros traverse l’écran en laissant des images, une entaille reste.' },
+  { id: 'storm', label: 'Pluie du ciel', show: 'Le ciel s’ouvre, des traits tombent un par un sur le champ.' },
+  { id: 'bless', label: 'Bénédiction', show: 'Le héros s’élève, des colonnes de lumière montent du sol.' },
+  { id: 'void', label: 'Effondrement', show: 'Tout est aspiré vers un point noir, puis relâché d’un coup.' },
+  { id: 'line', label: 'Rayon', show: 'Le héros arme, puis un trait traverse tout l’écran.' },
+];
+
+/**
+ * Devine la famille d'action à partir du texte de l'ultime, puis du rôle.
+ * C'est volontairement lisible : si le texte dit « frappe le sol », on ne fait
+ * pas une pluie de flèches.
+ */
+export function archetypeOf(text: string, role: string, id = ''): Archetype {
+  // Trois ultimes mentent aux mots-clés : on les corrige à la main, une fois.
+  // (Vaelen dit « intouchable » mais il dresse un mur de flammes ; Corvin dit
+  // « ciel » mais il perce une ligne ; Noktis dit « soigne » mais il fauche.)
+  const FORCED: Record<string, Archetype> = {
+    vaelen: 'slam', rook: 'slam', corvin: 'line', noktis: 'line', vesper: 'bless',
+  };
+  if (FORCED[id]) return FORCED[id]!;
+
+  const t = text.toLowerCase();
+  const has = (...w: string[]): boolean => w.some((x) => t.includes(x));
+  // L'ordre compte : ce qui définit le MOUVEMENT passe avant ce qui le nuance.
+  if (has('fonce', 'intouchable', 'insaisissable', 'frappe 7', 'frappe 8', 'six frappes', 'exécution')) return 'dash';
+  if (has('ligne', 'rayon', 'traits', 'lève son épée', 'fauche')) return 'line';
+  if (has('pluie', 'volée', 'volées', 'ciel', 'éclair', 'nuage', 'obus', 'tombe')) return 'storm';
+  if (has('aspire', 'attire', 'implose', 'soleil noir', 'néant', 'ronces', 'enracine')) return 'void';
+  if (has('sol', 'bondit', 'éboulement', 's’effondre', 'plafond', 'mur', 'pics', 'marteau', 'frappe le')) return 'slam';
+  if (has('soigne', 'protège', 'bouclier', 'chœur', 'glas', 'rend ', 'récupère', 'voix', 'éblouit')) return 'bless';
+  // Repli sur le rôle : un tank frappe le sol, un assassin traverse, un tireur
+  // envoie une volée, un soutien bénit, un mage effondre.
+  if (role === 'Tank') return 'slam';
+  if (role === 'Assassin') return 'dash';
+  if (role === 'Tireur') return 'storm';
+  if (role === 'Soutien') return 'bless';
+  if (role === 'Mage') return 'void';
+  return 'line';
+}
+
 export interface UltStyleDef {
   id: UltStyle;
   letter: string;
@@ -86,6 +143,10 @@ export interface UltData {
   glyph: string;
   /** Deuxième couleur, pour les dégradés (classe). */
   css2: string;
+  /** Famille d'action de l'ultime (raconte ce qu'il fait). */
+  arch: Archetype;
+  /** Nom court de la famille, pour l'affichage. */
+  archLabel: string;
 }
 
 const SECOND: Record<string, string> = {
@@ -94,7 +155,10 @@ const SECOND: Record<string, string> = {
 
 export function ultDataOf(h: HeroDef): UltData {
   const sig = signatureOf(h);
+  const arch = archetypeOf(h.abilities.ultimate.text, h.role, h.id);
   return {
+    arch,
+    archLabel: ARCHETYPES.find((a) => a.id === arch)?.label ?? '',
     name: h.abilities.ultimate.name,
     hero: h.name,
     title: h.title,
