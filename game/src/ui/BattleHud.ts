@@ -7,7 +7,7 @@ import { SUB_LABEL, itemCss, itemRarity, mainLabel } from '../data/items';
 import type { RewardOutcome } from '../state/store';
 import { Emitter } from '../utils/Emitter';
 import { icon } from './icons';
-import { signatureOf, type Motif } from './signatures';
+import { getUltStyle, ultDataOf, ultDuration, ultHTML } from './ultimate';
 
 type HudEvents = {
   ult: number;
@@ -297,36 +297,33 @@ export class BattleHud extends Emitter<HudEvents> {
    *   4. un coup de lame traverse l'écran, flash, puis tout se retire.
    * Durée : 1,5 s, sans jamais bloquer le combat.
    */
+  /**
+   * CINÉMATIQUE D'ULTIME.
+   *
+   * La mise en scène vient de `ultimate.ts` : quatre styles (Cinéma, Comics,
+   * Rituel, Holographique), choisis par le joueur dans le Laboratoire (`?lab`).
+   * Ici on ne gère que le cycle de vie : insérer, jouer le son, retirer.
+   */
   cutin(u: Unit): void {
     const h = u.hero;
     if (!h) return;
-    const sig = signatureOf(h);
-    const glyph: Record<Motif, string> = {
-      blade: '⚔', void: '◌', grave: '☩', moon: '☾', bell: '♪', frost: '❄', forge: '⚒', thorn: '❦',
-      flame: '▲', storm: '⚡', stone: '⬢', iron: '✂', choir: '♫', sun: '☀', gear: '⚙', wall: '▣',
-    };
+    const style = getUltStyle();
     const el = document.createElement('div');
-    el.className = 'uc';
-    el.style.setProperty('--c', h.css);
-    el.innerHTML = `
-      <div class="uc-bars"><i></i><i></i></div>
-      <div class="uc-vign"></div>
-      <div class="uc-grain"></div>
-      <div class="uc-seal">${glyph[sig.motif]}</div>
-      <div class="uc-streaks">${'<i></i>'.repeat(9)}</div>
-      <img class="uc-art" src="${ART[h.texture]}" alt="" draggable="false"/>
-      <div class="uc-artshade"></div>
-      <div class="uc-cap">
-        <small>Ultime</small>
-        <b>${h.abilities.ultimate.name}</b>
-        <span>${h.name} · ${h.title}</span>
-        <em>${sig.phrase}</em>
-      </div>
-      <div class="uc-slash"></div>
-      <div class="uc-flash"></div>`;
+    el.className = 'ult-host';
+    el.innerHTML = ultHTML(style, ultDataOf(h));
     this.el.appendChild(el);
-    try { audio.play(sig.sound, { vol: 0.75 }); } catch { /* son absent : on continue */ }
-    window.setTimeout(() => el.remove(), 1500);
+
+    // Le son accompagne le pic de la scène, pas son début : c'est ce décalage
+    // qui donne l'impression d'un impact plutôt que d'un jingle.
+    try {
+      const at = style === 'rituel' ? 1450 : style === 'comics' ? 780 : 820;
+      window.setTimeout(() => {
+        try { audio.play(style === 'comics' ? 'crit' : style === 'holo' ? 'cutin' : 'braam', { vol: 0.8 }); }
+        catch { /* son absent : on continue */ }
+      }, at);
+    } catch { /* audio indisponible */ }
+
+    window.setTimeout(() => el.remove(), ultDuration(style) + 80);
   }
 
   private onClick(e: MouseEvent): void {

@@ -12,6 +12,7 @@ import { icon, type IconName } from './icons';
 import { ROLE_ICON } from './roles';
 import { starsHTML } from './stars';
 import { foodStock, planRed, planYellow } from '../data/sanctuaire';
+import { ULT_STYLES, getUltStyle, setUltStyle } from './ultimate';
 import { canFullscreen, inIframe, isFullscreen, toggleFullscreen } from './fullscreen';
 import { collectionText, SummonScreen } from './Summon';
 import { towerRewards, towerStage, towerTier } from '../data/tower';
@@ -462,6 +463,10 @@ export class UI extends Emitter<UIEvents> {
           <input type="range" min="0" max="100" value="${Math.round(s.volume * 100)}" data-act="volume" /></div></div>
         <div class="setting"><div><b>Plein écran</b><small>Touche Entrée, ou double-clic sur le jeu</small></div>
           <button class="btn dark" data-act="fullscreen">${icon('expand')} ${isFullscreen() ? 'Quitter' : 'Activer'}</button></div>
+        <div class="setting"><div><b>Cinématiques d'ultime</b><small>La mise en scène jouée quand un héros lance son ultime. Le laboratoire les fait tourner en grand, un par un.</small></div>
+          <div class="ult-pick">${ULT_STYLES.map((x) => `<button data-ult="${x.id}" class="${x.id === getUltStyle() ? 'on' : ''}" title="${x.tag}">${x.letter} · ${x.name}</button>`).join('')}</div></div>
+        <div class="setting"><div><b>Laboratoire d'ultimes</b><small>Voir les quatre styles en grand, sur n'importe quel héros, et choisir le sien.</small></div>
+          <button class="btn dark" data-act="lab">${icon('star')} Ouvrir</button></div>
         <div class="setting"><div><b>Caméra</b><small>Revenir au centre de la ville</small></div>
           <button class="btn dark" data-act="recenter">${icon('refresh')} Recentrer</button></div>
       </div>
@@ -496,6 +501,19 @@ export class UI extends Emitter<UIEvents> {
       void toggleFullscreen().then((on) => {
         fsBtn.innerHTML = `${icon('expand')} ${on ? 'Quitter' : 'Activer'}`;
       });
+    });
+    modal.querySelectorAll<HTMLElement>('[data-ult]').forEach((b) =>
+      b.addEventListener('click', () => {
+        setUltStyle(b.dataset.ult as ReturnType<typeof getUltStyle>);
+        modal.querySelectorAll('[data-ult]').forEach((x) => x.classList.toggle('on', x === b));
+        audio.click();
+        this.toast(`Style « ${ULT_STYLES.find((x) => x.id === b.dataset.ult)?.name} » sélectionné`);
+      }),
+    );
+    modal.querySelector('[data-act="lab"]')?.addEventListener('click', () => {
+      const u = new URL(location.href);
+      u.searchParams.set('lab', '1');
+      location.href = u.toString();
     });
     modal.querySelector('[data-act="recenter"]')?.addEventListener('click', () => { this.emit('recenter', undefined); this.closeModal(); });
     modal.querySelector('[data-act="reset"]')?.addEventListener('click', () => {

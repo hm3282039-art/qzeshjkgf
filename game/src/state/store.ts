@@ -174,6 +174,19 @@ class Store extends Emitter<StoreEvents> {
         const heroes: Roster = { ...base.heroes, ...parsed.heroes };
         const levels: HeroLevels = { ...base.levels, ...(parsed.levels ?? {}) };
         for (const id of Object.keys(heroes)) if (!heroById(id)) delete heroes[id];
+        // Migration 1.5 : l'ancien système montait jusqu'à 10 étoiles jaunes.
+        // On plafonne à 5 et on convertit le surplus en étoiles rouges.
+        const red: Record<string, number> = { ...(parsed.red ?? {}) };
+        for (const id of Object.keys(heroes)) {
+          const def = heroById(id);
+          if (!def) continue;
+          const n = heroes[id] ?? def.stars;
+          if (n > MAX_STARS) {
+            heroes[id] = MAX_STARS;
+            red[id] = Math.min(MAX_RED[def.rarity], (red[id] ?? 0) + (n - MAX_STARS));
+          }
+          if (heroes[id]! < def.stars) heroes[id] = def.stars;
+        }
         const team = (parsed.team ?? base.team).filter((id, i, a) => heroes[id] !== undefined && a.indexOf(id) === i).slice(0, 5);
         this.data = {
           version: 1,
@@ -182,7 +195,7 @@ class Store extends Emitter<StoreEvents> {
           campaign: { ...parsed.campaign },
           heroes,
           levels,
-          red: parsed.red ?? {},
+          red,
           dupes: parsed.dupes ?? {},
           team: team.length ? team : base.team,
           pity: parsed.pity ?? 0,

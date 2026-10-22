@@ -3,6 +3,7 @@ import '@fontsource/cinzel/latin-700.css';
 import '@fontsource/cinzel/latin-900.css';
 import '@fontsource/cinzel-decorative/latin-700.css';
 import './ui/styles.css';
+import './ui/ultimate.css';
 
 import { loadAssets } from './assets';
 import { BUILDINGS } from './data/buildings';
@@ -391,9 +392,20 @@ function stackHint(err: unknown): string {
   return line.trim().replace(/^at\s+/, '').replace(/https?:\/\/[^/]+\//, '').slice(0, 90);
 }
 
+/**
+ * Le Laboratoire d'ultimes (`?lab`) est une salle d'essai hors du jeu :
+ * on y compare les quatre styles de cinématique et on garde le sien.
+ * Il se charge avant tout le reste (pas de WebGL, pas d'assets : c'est du DOM).
+ */
+if (new URLSearchParams(location.search).has('lab')) {
+  import('./ui/lab').then((m) => m.mountLab()).catch((err: unknown) => {
+    loaderPanel('Le laboratoire n\'a pas pu s\'ouvrir', err instanceof Error ? err.message : String(err));
+  });
+} else {
 boot().catch((err: unknown) => {
   console.error(err);
   const message = err instanceof Error ? err.message : String(err);
   const where = stackHint(err);
   loaderPanel('Le jeu n\'a pas pu démarrer', `Étape : « ${bootStep} ». ${message}${where ? ` [${where}]` : ''}`, true);
 });
+}

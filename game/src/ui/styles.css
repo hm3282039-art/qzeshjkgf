@@ -2436,3 +2436,11 @@ body.in-battle .npc-bubble { display: none; }
   .uc-cap { max-width: 70%; left: 4%; }
   .uc-seal { font-size: 20rem; }
 }
+
+/* Sélecteur de style de cinématique (Paramètres). */
+.ult-pick { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-end; }
+.ult-pick button { padding: 0.35rem 0.6rem; border-radius: 0.35rem; border: 1px solid #3a2c52; background: #150f24;
+  color: #a99ec4; font-size: 0.68rem; font-weight: 700; transition: 0.15s; }
+.ult-pick button:hover { border-color: #6a4a9a; color: #e8dcff; }
+.ult-pick button.on { border-color: #ffd36a; color: #ffe9b0; background: #241a08;
+  box-shadow: 0 0 0.7rem rgba(255, 211, 106, 0.35); }

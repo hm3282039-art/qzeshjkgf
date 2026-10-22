@@ -13,7 +13,8 @@
     "test:reaction": "vite-node tests/test-reaction.ts",
     "test:fix": "vite-node tests/test-fix.ts",
     "test": "vite-node tests/test-battle.ts",
-    "test:niveaux": "vite-node tests/test-niveaux.ts"
+    "test:niveaux": "vite-node tests/test-niveaux.ts",
+    "test:ult": "vite-node tests/test-ult.ts"
   },
   "dependencies": {
     "@fontsource/cinzel": "^5.3.0",
@@ -22,9 +23,10 @@
     "pixi.js": "^8.22.0"
   },
   "devDependencies": {
+    "linkedom": "^0.18.14",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
-    "vite-plugin-singlefile": "^2.3.4",
-    "vite-node": "^6.0.0"
+    "vite-node": "^6.0.0",
+    "vite-plugin-singlefile": "^2.3.4"
   }
 }
