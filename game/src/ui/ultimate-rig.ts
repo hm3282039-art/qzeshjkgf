@@ -175,12 +175,59 @@ export function applyPose(root: HTMLElement, pose: Pose): void {
   set('jambes', -pose.torso + pose.legs);
 }
 
-/** La durée d'une chorégraphie de squelette, en ms. */
-export const RIG_MS = 5200;
+/**
+ * LA STRUCTURE EN 4 PHASES (le cahier des charges d'Epic Seven)
+ * -------------------------------------------------------------
+ *   1. TEASER ....... gros plan sur le visage, l'aura charge
+ *   2. DASH ......... lignes de vitesse, il s'élance
+ *   3. IMPACT ....... attaque + 2 images de contraste extrême (impact frames)
+ *   4. OUTRO ........ pose charismatique, la poussière retombe, retour au jeu
+ */
+export const PHASES = [
+  { id: 'teaser', label: 'Teaser', at: 0, dur: 900, hint: 'gros plan sur le visage, l\'aura charge' },
+  { id: 'dash', label: 'Dash', at: 900, dur: 620, hint: 'lignes de vitesse, il s\'élance' },
+  { id: 'impact', label: 'Impact', at: 1520, dur: 1380, hint: 'frappe, impact frames, onde de choc' },
+  { id: 'outro', label: 'Outro', at: 2900, dur: 1500, hint: 'pose de fin, poussière, nom' },
+] as const;
+
+export const RIG_MS = 4400;
+
+/** Où le geste frappe, selon l'archétype (fraction de la timeline). */
+const HIT_AT: Record<string, number> = { slam: 0.54, dash: 0.56, storm: 0.5, bless: 0.52, void: 0.5, line: 0.5 };
+
+/** La caméra : elle seule fait la moitié du travail. */
+interface Cam { s: number; x: number; y: number; rot: number }
+
+function camAt(ms: number): Cam {
+  // (la progression se lit par phase ci-dessous)
+  if (ms < PHASES[1].at) {
+    // teaser : on reste serré, la caméra avance doucement
+    const k = ms / PHASES[1].at;
+    return { s: 1.42 - 0.06 * k, x: 0, y: -0.06 + 0.02 * k, rot: 0 };
+  }
+  if (ms < PHASES[2].at) {
+    // dash : recul rapide, la caméra file vers l'ennemi
+    const k = (ms - PHASES[1].at) / PHASES[1].dur;
+    const e = 1 - (1 - k) ** 3;
+    return { s: 1.36 - 0.30 * e, x: 0.05 * e, y: -0.02 * e, rot: -1.6 * e };
+  }
+  if (ms < PHASES[3].at) {
+    // impact : snap zoom puis secousse
+    const k = (ms - PHASES[2].at) / PHASES[2].dur;
+    const snap = k < 0.14 ? k / 0.14 : 1;
+    const back = k > 0.5 ? (k - 0.5) / 0.5 : 0;
+    const s = 1.06 + 0.34 * snap - 0.10 * back;
+    return { s, x: -0.04 + 0.02 * k, y: -0.02, rot: -0.8 + 0.8 * back };
+  }
+  // outro : on recule pour montrer la pose
+  const k = (ms - PHASES[3].at) / PHASES[3].dur;
+  const e = 1 - (1 - k) ** 2;
+  return { s: 1.30 - 0.26 * e, x: -0.03 * (1 - e), y: -0.01, rot: 0 };
+}
 
 /**
- * Joue l'ultime d'un héros avec son squelette, en temps réel.
- * Une seule fonction : c'est elle qui remplace les vidéos.
+ * Joue l'ultime d'un héros avec son squelette, en temps réel et en 4 phases.
+ * Aucun fichier : tout est calculé à l'écran, 60 fois par seconde.
  */
 export function playRig(
   host: HTMLElement,
@@ -193,40 +240,100 @@ export function playRig(
   if (!rig) return;
   const t0 = performance.now();
   const keys = ULT_POSES[d.arch] ?? ULT_POSES.slam!;
+  const hitAt = (HIT_AT[d.arch] ?? 0.54) * RIG_MS;
 
   host.innerHTML = `<div class="rscene rscene-${style} arch-${d.arch}" style="--c:${d.css};--c2:${d.css2}">
     <div class="rs-bg"></div>
-    <div class="rs-glow"></div>
-    <div class="rs-aura"></div>
-    <div class="rs-parts">${'<i></i>'.repeat(18)}</div>
-    <div class="rs-shock"></div>
-    <div class="rs-crack">${'<i></i>'.repeat(9)}</div>
+    <div class="rs-speed">${'<i></i>'.repeat(22)}</div>
+    <div class="rs-cam">
+      <div class="rs-glow"></div>
+      <div class="rs-aura"></div>
+      <div class="rs-parts">${'<i></i>'.repeat(18)}</div>
+      <div class="rs-frame" style="aspect-ratio:${rig.w} / ${rig.h}">${rigHTML(id)}</div>
+      <div class="rs-shock"></div>
+      <div class="rs-crack">${'<i></i>'.repeat(9)}</div>
+      <div class="rs-blade"></div>
+      <div class="rs-hits">${'<i></i>'.repeat(4)}</div>
+    </div>
+    <div class="rs-face"><img src="${d.portrait}" alt="" draggable="false"/><span></span></div>
     <div class="rs-title"><small>ULTIME</small><b>${d.name}</b><span>${d.hero} · ${d.title}</span></div>
-    <div class="rs-frame" style="aspect-ratio:${rig.w} / ${rig.h}">${rigHTML(id)}</div>
     <div class="rs-flash"></div>
+    <div class="rs-invert"></div>
     <div class="rs-end"></div>
   </div>`;
 
   const scene = host.querySelector<HTMLElement>('.rscene')!;
+  const camEl = host.querySelector<HTMLElement>('.rs-cam')!;
   const frame = host.querySelector<HTMLElement>('.rs-frame')!;
-  const glyph = host.querySelector<HTMLElement>('.rs-title')!;
+  const face = host.querySelector<HTMLElement>('.rs-face')!;
+  const title = host.querySelector<HTMLElement>('.rs-title')!;
+  const hits = host.querySelector<HTMLElement>('.rs-hits')!;
 
-  // le héros « respire » : léger balancement quand il ne fait rien
+  let phase = -1;
+  const goPhase = (i: number): void => {
+    if (phase === i) return;
+    phase = i;
+    scene.dataset.phase = PHASES[i]!.id;
+    if (i === 1) audio.play('blink', { vol: 0.6 });
+    if (i === 2) {
+      audio.play('ult_impact', { vol: 0.95 });
+      audio.play('crit', { vol: 0.7, delay: 0.05 });
+      audio.play('explosion', { vol: 0.4, delay: 0.02 });
+    }
+    if (i === 3) audio.play('choir', { vol: 0.65 });
+  };
+
+  let impactFrameDone = false;
+  let titleShown = false;
+
   const tick = (): void => {
     const ms = performance.now() - t0;
     const t = Math.min(1, ms / RIG_MS);
+
+    goPhase(ms < PHASES[1].at ? 0 : ms < PHASES[2].at ? 1 : ms < PHASES[3].at ? 2 : 3);
+
+    // 1. la pose du squelette (interpolée en continu)
     applyPose(frame, poseAt(keys, t));
-    // impact : au moment où le geste frappe (54 % pour un coup au sol)
-    const hitAt = d.arch === 'slam' ? 0.54 : d.arch === 'dash' ? 0.56 : 0.5;
-    if (t > hitAt && !scene.classList.contains('hit')) {
+
+    // 2. la caméra + la secousse
+    const cam = camAt(ms);
+    const shakeAmp = ms > hitAt && ms < hitAt + 380 ? 2.6 * (1 - (ms - hitAt) / 380) : 0;
+    const sx = shakeAmp ? (Math.random() * 2 - 1) * shakeAmp : 0;
+    const sy = shakeAmp ? (Math.random() * 2 - 1) * shakeAmp : 0;
+    camEl.style.transform =
+      `translate(${cam.x * 100 + sx}%, ${cam.y * 100 + sy}%) rotate(${cam.rot}deg) scale(${cam.s.toFixed(3)})`;
+
+    // 3. le gros plan du visage (teaser)
+    if (ms < PHASES[1].at) face.classList.add('on');
+    else face.classList.remove('on');
+
+    // 4. l'impact : onde, fissures, chiffres, image inversée
+    if (!impactFrameDone && ms >= hitAt) {
+      impactFrameDone = true;
       scene.classList.add('hit');
-      audio.play('ult_impact', { vol: 0.9 });
-      audio.play('crit', { vol: 0.7, delay: 0.06 });
+      hits.querySelectorAll<HTMLElement>('i').forEach((h, i) => {
+        h.textContent = String((i + 2) * 1370);
+        h.style.animationDelay = `${i * 55}ms`;
+      });
     }
-    if (t > 0.52 && t < 0.62) glyph.classList.add('show');
+    // impact frames : 2 images de contraste extrême (comme dans l'anime)
+    if (impactFrameDone && ms < hitAt + 150) {
+      const k = Math.floor((ms - hitAt) / 40);
+      scene.classList.toggle('invert', k % 2 === 0);
+    } else {
+      scene.classList.remove('invert');
+    }
+
+    // 5. le carton du nom, en fin d'impact
+    if (!titleShown && ms > PHASES[3].at - 150) {
+      titleShown = true;
+      title.classList.add('show');
+    }
+
     if (ms < RIG_MS) raf(tick);
     else onEnd?.();
   };
+
   audio.play('riser', { vol: 0.5 });
   raf(tick);
 }

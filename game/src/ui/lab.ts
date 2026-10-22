@@ -85,7 +85,7 @@ export function mountLab(): void {
       </div>
     </header>
     <div class="lab-modes">
-      <button class="lab-mode" data-mode="rig"><b>Squelette 2D</b><span>temps réel, instantané, ultra-léger — le vrai système</span></button>
+      <button class="lab-mode" data-mode="rig"><b>Ultime S3</b><span>4 phases · caméra · impact frames · temps réel 60 i/s</span></button>
       <button class="lab-mode" data-mode="cine"><b>Scène animée</b><span>7 plans en DOM · essayé avant la vidéo</span></button>
       <button class="lab-mode" data-mode="full"><b>Scène continue</b><span>l'essai précédent · 5 actes · un seul plan</span></button>
       <button class="lab-mode" data-mode="card"><b>Carton du nom</b><span>la révélation seule · 4 styles · 1,5 s</span></button>
@@ -249,7 +249,7 @@ export function mountLab(): void {
     const dur = mode === 'rig' ? RIG_MS : mode === 'cine' ? CINE_MS : fullDuration(style);
     const what = mode === 'rig'
       ? (RIGS[def.id]
-        ? 'Temps réel : 5 morceaux reliés à un squelette, animés à 60 i/s par le navigateur — zéro chargement, zéro vidéo.'
+        ? 'Temps réel : teaser (visage) → dash → impact (impact frames) → pose de fin. Squelette de 5 morceaux, caméra animée, 60 i/s, zéro chargement.'
         : 'Pas encore de squelette pour ce héros (vidéo en attendant).')
       : mode === 'cine'
       ? (ULT_FRAMES[def.id]

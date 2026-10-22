@@ -12,7 +12,7 @@ import { fullDuration, fullUltHTML } from '../src/ui/ultimate-full';
 import { CINE_MS, CINE_SHOTS, cineDuration, cineHTML } from '../src/ui/ultimate-cine';
 import { ULT_ART, ULT_FRAMES } from '../src/assets';
 import { RIGS } from '../src/data/rigs';
-import { RIG_MS, ULT_POSES, applyPose, poseAt } from '../src/ui/ultimate-rig';
+import { PHASES, RIG_MS, ULT_POSES, applyPose, poseAt } from '../src/ui/ultimate-rig';
 
 /* ---------- 1. Le carton du nom : 4 styles × 27 héros ---------- */
 const signatures = {
@@ -148,9 +148,26 @@ if (rigged > 2) {
       for (const [k, v] of Object.entries(p)) if (!Number.isFinite(v)) throw new Error(`pose invalide ${arch}.${k}`);
     }
   }
+  // les 4 phases doivent couvrir toute la durée, sans trou
+  if (PHASES.length !== 4) throw new Error(`${PHASES.length} phases au lieu de 4`);
+  for (let i = 0; i < PHASES.length; i++) {
+    const p = PHASES[i]!;
+    if (p.at !== (i === 0 ? 0 : PHASES[i - 1]!.at + PHASES[i - 1]!.dur)) {
+      throw new Error(`la phase ${p.id} ne reprend pas exactement où la précédente s'arrête`);
+    }
+  }
+  const lastPhase = PHASES[PHASES.length - 1]!;
+  if (lastPhase.at + lastPhase.dur !== RIG_MS) throw new Error('les phases ne couvrent pas toute la scène');
+  const rg = document.querySelector('[data-stage] .rscene');
+  if (!rg) throw new Error('pas de scène montée');
+  if (!rg.querySelector('.rs-cam')) throw new Error('pas de caméra dans la scène');
+  if (!rg.querySelector('.rs-invert')) throw new Error('pas de calque d\'impact frame');
+  if (!rg.querySelector('.rs-speed')) throw new Error('pas de lignes de vitesse');
+
   const el = document.querySelector<HTMLElement>('[data-stage] .rg')!;
   applyPose(el, poseAt(ULT_POSES.slam!, 0.54));
-  console.log(`Chorégraphies vérifiées à 0 %, 5 %, … 100 % · impact à ${RIG_MS} ms`);
+  console.log(`S3 · ${PHASES.map((p) => `${p.label} ${p.at}–${p.at + p.dur}ms`).join(' · ')}`);
+  console.log(`Chorégraphies vérifiées à 0 %, 5 %, … 100 % · caméra + impact frames présents`);
 }
 
 (document.querySelector('[data-mode="cine"]') as HTMLElement).dispatchEvent(new window.Event('click'));

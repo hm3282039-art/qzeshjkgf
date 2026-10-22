@@ -1,45 +1,78 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   SCÈNE D'ULTIME EN TEMPS RÉEL (rig 2D)
-   Le héros est un empilement de cinq images ; le moteur les tourne autour de
-   leurs pivots 60 fois par seconde. Aucun fichier vidéo, aucun canvas.
+   ULTIME S3 EN TEMPS RÉEL — 4 phases, caméra, impact frames
+   ───────────────────────────────────────────────────────────────────────────
+   Aucune vidéo, aucune image pré-rendue, aucun canvas : cinq images par héros
+   (tête, torse, deux bras, jambes) tournées autour de leurs pivots, plus des
+   effets dessinés par le moteur. Tout tombe à 60 images/seconde.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .rscene { position: absolute; inset: 0; overflow: hidden; z-index: 60;
   background: #05030a; isolation: isolate; pointer-events: none;
   font-family: var(--font-body); }
 
-/* Décor : dégradé + halo de la couleur du héros */
+/* ── PHASE 1 · décor de fond ────────────────────────────────────────────── */
 .rs-bg { position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 78%, color-mix(in srgb, var(--c) 16%, #120a1e), transparent 72%),
-    radial-gradient(ellipse 90% 70% at 50% 40%, #14101f, #05030a 76%); }
-.rs-glow { position: absolute; left: 50%; top: 62%; width: 90vmin; height: 90vmin;
-  transform: translate(-50%, -50%); opacity: .55;
+    radial-gradient(ellipse 62% 52% at 50% 76%, color-mix(in srgb, var(--c) 18%, #120a1e), transparent 70%),
+    radial-gradient(ellipse 92% 74% at 50% 38%, #16111f, #05030a 74%);
+  transition: opacity .3s; }
+
+/* ── PHASE 2 · lignes de vitesse (elles n'apparaissent qu'au dash) ──────── */
+.rs-speed { position: absolute; inset: -20%; opacity: 0; transition: opacity .18s;
+  background: repeating-linear-gradient(104deg,
+    transparent 0 22px, rgba(255,255,255,.55) 22px 25px, transparent 25px 60px);
+  -webkit-mask-image: radial-gradient(ellipse 46% 40% at 50% 52%, transparent 26%, #000 78%);
+  mask-image: radial-gradient(ellipse 46% 40% at 50% 52%, transparent 26%, #000 78%); }
+.rscene[data-phase="dash"] .rs-speed { opacity: .5; animation: rs-rush 260ms linear infinite; }
+.rscene[data-phase="impact"] .rs-speed { opacity: .22; }
+@keyframes rs-rush { from { transform: translateX(0) translateY(0); } to { transform: translateX(-60px) translateY(15px); } }
+
+/* ── La caméra : un seul div qui bouge, tout suit ────────────────────────── */
+.rs-cam { position: absolute; inset: 0; transform-origin: 50% 62%; will-change: transform;
+  transition: transform 60ms linear; }
+
+.rs-glow { position: absolute; left: 50%; top: 62%; width: 92vmin; height: 92vmin;
+  transform: translate(-50%, -50%); opacity: .5;
   background: radial-gradient(circle, color-mix(in srgb, var(--c) 34%, transparent), transparent 62%);
-  filter: blur(10px); }
-.rs-aura { position: absolute; left: 50%; bottom: 0; width: 60%; height: 86%;
+  filter: blur(12px); }
+.rs-aura { position: absolute; left: 50%; bottom: 0; width: 62%; height: 88%;
   transform: translateX(-50%); opacity: 0;
-  background: radial-gradient(ellipse 50% 60% at 50% 78%, color-mix(in srgb, var(--c) 42%, transparent), transparent 70%);
-  filter: blur(6px); }
+  background: radial-gradient(ellipse 50% 60% at 50% 78%, color-mix(in srgb, var(--c) 46%, transparent), transparent 70%);
+  filter: blur(7px); animation: rs-charge 1520ms ease-out forwards; }
+@keyframes rs-charge { 0% { opacity: 0; } 55% { opacity: .85; } 100% { opacity: .35; } }
 
 /* ── Le squelette ──────────────────────────────────────────────────────── */
 .rs-frame { position: absolute; left: 50%; bottom: 3%; height: 86%;
   transform: translateX(-50%); contain: layout paint; }
 .rg { position: absolute; inset: 0; }
-/* le corps est posé sur le sol : les pieds restent au même endroit */
-.rg-body { filter: drop-shadow(0 1.2rem 2rem rgba(0,0,0,.55)); }
-.rg-body { position: absolute; inset: 0; transform-origin: 50% 92%;
-  will-change: transform; }
+.rg-body { position: absolute; inset: 0; transform-origin: 50% 92%; will-change: transform;
+  filter: drop-shadow(0 1.2rem 2rem rgba(0,0,0,.55)); }
 .rg-p { position: absolute; display: block; background-repeat: no-repeat;
-  background-size: 100% 100%; will-change: transform; }
-.rg-tete, .rg-bras_g, .rg-bras_d, .rg-jambes { transition: none; }
+  background-size: 100% 100%; will-change: rotate; }
 
-/* ── Effets : « cell animation » calculée par le moteur ─────────────────── */
-.rs-parts { position: absolute; inset: 0; opacity: 0; animation: rs-fade 5200ms ease forwards; }
-.rs-parts i { position: absolute; left: 50%; bottom: 18%; width: 3px; height: 3px; border-radius: 50%;
-  background: color-mix(in srgb, var(--c) 85%, #fff);
-  box-shadow: 0 0 8px var(--c);
-  animation: rs-spark 1400ms linear infinite;
+/* ── PHASE 1 · le gros plan sur le visage (cut-in) ──────────────────────── */
+.rs-face { position: absolute; inset: 0; opacity: 0; z-index: 12;
+  transition: opacity 120ms linear; }
+.rs-face.on { opacity: 1; }
+.rs-face img { position: absolute; left: 50%; top: 46%; width: 150%; height: 150%;
+  object-fit: cover; object-position: 50% 18%;
+  transform: translate(-50%, -50%) scale(1.04);
+  filter: contrast(1.18) saturate(.92) brightness(.92)
+          drop-shadow(0 0 3rem color-mix(in srgb, var(--c) 55%, transparent)); }
+/* vignettage dur : on ne voit que le regard */
+.rs-face::after { content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 46% 40% at 50% 34%, transparent 30%, rgba(4,2,8,.92) 78%); }
+/* les yeux s'allument */
+.rs-face span { position: absolute; left: 50%; top: 33%; width: 34%; height: 7%; transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--c) 90%, #fff), transparent 72%);
+  filter: blur(6px); opacity: 0; animation: rs-eyes 900ms ease-out forwards; }
+@keyframes rs-eyes { 0%, 30% { opacity: 0; } 60% { opacity: 1; } 100% { opacity: .55; } }
+
+/* ── Effets de particules ──────────────────────────────────────────────── */
+.rs-parts { position: absolute; inset: 0; }
+.rs-parts i { position: absolute; left: 50%; bottom: 20%; width: 3px; height: 3px; border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 80%, #fff); box-shadow: 0 0 8px var(--c);
+  opacity: 0; animation: rs-spark 1500ms linear infinite;
   animation-delay: calc(var(--i) * 70ms); }
 .rs-parts i:nth-child(1)  { --i: 0; --dx: -12rem; }
 .rs-parts i:nth-child(2)  { --i: 1; --dx:  10rem; }
@@ -54,71 +87,106 @@
 .rs-parts i:nth-child(11) { --i: 10; --dx:  12rem; }
 .rs-parts i:nth-child(12) { --i: 11; --dx:  -3rem; }
 .rs-parts i:nth-child(13) { --i: 12; --dx:  16rem; }
-.rs-parts i:nth-child(14) { --i: 13; --dx:  -13rem; }
+.rs-parts i:nth-child(14) { --i: 13; --dx: -13rem; }
 .rs-parts i:nth-child(15) { --i: 14; --dx:   2rem; }
 .rs-parts i:nth-child(16) { --i: 15; --dx:  20rem; }
 .rs-parts i:nth-child(17) { --i: 16; --dx:  -7rem; }
 .rs-parts i:nth-child(18) { --i: 17; --dx:   9rem; }
 @keyframes rs-spark {
   0% { opacity: 0; transform: translate(0, 0) scale(.4); }
-  25% { opacity: 1; }
+  22% { opacity: 1; }
   100% { opacity: 0; transform: translate(var(--dx), -26rem) scale(1.1); }
 }
-@keyframes rs-fade { 0% { opacity: 0; } 30% { opacity: 1; } 85% { opacity: .8; } 100% { opacity: 0; } }
 
-/* onde de choc, déclenchée par JS à l'impact */
+/* ── L'impact : onde, fissures, lame, chiffres ─────────────────────────── */
 .rs-shock { position: absolute; left: 50%; bottom: 20%; width: 8vmin; height: 8vmin; border-radius: 50%;
   transform: translate(-50%, 50%) scale(0); opacity: 0;
   border: 3px solid color-mix(in srgb, var(--c) 85%, #fff);
-  box-shadow: 0 0 3rem var(--c); }
-.rscene.hit .rs-shock { animation: rs-shock 900ms cubic-bezier(.1,.8,.2,1) forwards; }
+  box-shadow: 0 0 3rem var(--c), inset 0 0 2rem color-mix(in srgb, var(--c) 60%, transparent); }
+.rscene.hit .rs-shock { animation: rs-shock 950ms cubic-bezier(.1,.8,.2,1) forwards; }
 @keyframes rs-shock {
   0% { opacity: 1; transform: translate(-50%, 50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, 50%) scale(14); }
+  100% { opacity: 0; transform: translate(-50%, 50%) scale(15); }
 }
 
-/* fissures du sol (coup au sol) */
-.rs-crack { position: absolute; left: 50%; bottom: 12%; width: 0; height: 0; opacity: 0; display: none; }
-.arch-slam .rs-crack { display: block; }
+.rs-crack { position: absolute; left: 50%; bottom: 10%; width: 0; height: 0; opacity: 0; display: none; }
+.arch-slam .rs-crack, .arch-void .rs-crack { display: block; }
 .rscene.hit .rs-crack { opacity: 1; }
 .rs-crack i { position: absolute; left: 0; top: 0; width: .5rem; height: 34vmax; transform-origin: 50% 0;
   background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--c) 70%, #000) 40%, transparent 92%);
   clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); opacity: .85;
-  transform: scaleY(0); transition: transform 420ms cubic-bezier(.2,1,.3,1); }
-.rscene.hit .rs-crack i { transform: scaleY(1); }
-.rs-crack i:nth-child(1) { rotate: 8deg; }
-.rs-crack i:nth-child(2) { rotate: 46deg; }
-.rs-crack i:nth-child(3) { rotate: 84deg; }
-.rs-crack i:nth-child(4) { rotate: 118deg; }
-.rs-crack i:nth-child(5) { rotate: 152deg; }
-.rs-crack i:nth-child(6) { rotate: 196deg; }
-.rs-crack i:nth-child(7) { rotate: 238deg; }
-.rs-crack i:nth-child(8) { rotate: 286deg; }
-.rs-crack i:nth-child(9) { rotate: 330deg; }
+  transform: rotate(var(--r, 0deg)) scaleY(0);
+  transition: transform 420ms cubic-bezier(.2,1,.3,1); }
+.rscene.hit .rs-crack i { transform: rotate(var(--r, 0deg)) scaleY(1); }
+.rs-crack i:nth-child(1) { --r: 8deg; }
+.rs-crack i:nth-child(2) { --r: 46deg; }
+.rs-crack i:nth-child(3) { --r: 84deg; }
+.rs-crack i:nth-child(4) { --r: 118deg; }
+.rs-crack i:nth-child(5) { --r: 152deg; }
+.rs-crack i:nth-child(6) { --r: 196deg; }
+.rs-crack i:nth-child(7) { --r: 238deg; }
+.rs-crack i:nth-child(8) { --r: 286deg; }
+.rs-crack i:nth-child(9) { --r: 330deg; }
 
-/* flash + négatif */
-.rs-flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 8; }
-.rscene.hit .rs-flash { animation: rs-flash 520ms steps(1) forwards; }
-@keyframes rs-flash { 0% { opacity: .95; } 6% { opacity: .05; } 12% { opacity: .5; } 20%, 100% { opacity: 0; } }
+/* la traînée de l'arme : elle balaie l'écran au moment du coup */
+.rs-blade { position: absolute; left: -24%; top: 48%; width: 148%; height: 1.6%; opacity: 0;
+  background: linear-gradient(90deg, transparent, #fff 26%, color-mix(in srgb, var(--c) 85%, #fff) 52%, transparent 94%);
+  filter: drop-shadow(0 0 1.4rem var(--c)); transform: rotate(-9deg) scaleX(0); transform-origin: 0 50%; }
+.rscene.hit .rs-blade { animation: rs-blade 620ms cubic-bezier(.7,0,.2,1) forwards; }
+@keyframes rs-blade {
+  0% { opacity: 0; transform: rotate(-9deg) scaleX(0); }
+  18% { opacity: 1; transform: rotate(-9deg) scaleX(1); }
+  70% { opacity: .5; }
+  100% { opacity: 0; transform: rotate(-9deg) scaleX(1.04); }
+}
 
-/* le carton du nom */
-.rs-title { position: absolute; left: 8%; bottom: 12%; z-index: 6; opacity: 0; text-align: left;
-  transform: translateY(1rem); transition: opacity 380ms ease, transform 380ms ease; }
+/* les chiffres de dégâts */
+.rs-hits { position: absolute; left: 50%; top: 44%; width: 0; height: 0; z-index: 7; }
+.rs-hits i { position: absolute; left: 0; top: 0; opacity: 0;
+  font-family: var(--font-title); font-weight: 900; font-size: 1.5rem; color: #fff;
+  text-shadow: 0 0 1rem var(--c), 0 .1em 0 #000; }
+.rs-hits i:nth-child(1) { --x: -9rem; --y: -2rem; font-size: 2.3rem; color: #ffe9b0; }
+.rs-hits i:nth-child(2) { --x: 5rem;  --y: -5rem; }
+.rs-hits i:nth-child(3) { --x: 10rem; --y: 1rem; }
+.rs-hits i:nth-child(4) { --x: -1rem; --y: 4rem; }
+.rscene.hit .rs-hits i { animation: rs-hit 1100ms cubic-bezier(.2,1,.3,1) forwards; }
+@keyframes rs-hit {
+  0% { opacity: 0; transform: translate(calc(var(--x) * .4), calc(var(--y) * .4)) scale(.6); }
+  14% { opacity: 1; transform: translate(var(--x), var(--y)) scale(1.15); }
+  30% { transform: translate(var(--x), calc(var(--y) - 1rem)) scale(1); }
+  100% { opacity: 0; transform: translate(var(--x), calc(var(--y) - 3.5rem)) scale(.95); }
+}
+
+/* ── PHASE 3 · les impact frames (contraste extrême) ───────────────────── */
+.rs-invert { position: absolute; inset: 0; opacity: 0; z-index: 20; pointer-events: none;
+  background: #fff; mix-blend-mode: difference; }
+.rscene.invert .rs-cam { filter: contrast(1.9) saturate(1.4); }
+.rscene.invert .rs-invert { opacity: 1; }
+.rs-flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 21; }
+.rscene.hit .rs-flash { animation: rs-flash 620ms steps(1) forwards; }
+@keyframes rs-flash { 0% { opacity: .95; } 6% { opacity: .04; } 11% { opacity: .5; } 19%, 100% { opacity: 0; } }
+
+/* ── PHASE 4 · la pose de fin et le nom ────────────────────────────────── */
+.rs-title { position: absolute; left: 7%; bottom: 11%; z-index: 14; opacity: 0;
+  transform: translateY(1rem); transition: opacity 420ms ease, transform 420ms ease; }
 .rs-title.show { opacity: 1; transform: none; }
-.rs-title small { display: block; font-family: var(--font-title); font-weight: 900; font-size: .72rem;
+.rs-title small { display: block; font-family: var(--font-title); font-weight: 900; font-size: .7rem;
   letter-spacing: .7em; text-transform: uppercase; color: var(--c); text-shadow: 0 0 1.2rem var(--c); }
 .rs-title b { display: block; font-family: var(--font-deco); font-weight: 700;
-  font-size: clamp(1.8rem, 4.2vw, 3.6rem); line-height: 1.05; color: #fff9ec;
+  font-size: clamp(1.7rem, 4vw, 3.4rem); line-height: 1.05; color: #fff9ec;
   text-shadow: 0 0 2rem color-mix(in srgb, var(--c) 80%, transparent), 0 .06em 0 #000; }
-.rs-title span { display: block; margin-top: .3rem; font-family: var(--font-title); font-weight: 700;
-  letter-spacing: .16em; text-transform: uppercase; font-size: .68rem; color: #e3c077; }
+.rs-title span { display: block; margin-top: .28rem; font-family: var(--font-title); font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase; font-size: .64rem; color: #e3c077; }
+.rs-title::before { content: ''; position: absolute; inset: -60% -30% -40% -20%; z-index: -1;
+  background: radial-gradient(ellipse 60% 60% at 26% 56%, rgba(4,2,8,.9), transparent 72%); }
 
 /* fin : fondu au noir */
-.rs-end { position: absolute; inset: 0; background: #05030a; opacity: 0; z-index: 10;
-  animation: rs-end 5200ms linear forwards; }
-@keyframes rs-end { 0%, 88% { opacity: 0; } 100% { opacity: 1; } }
+.rs-end { position: absolute; inset: 0; background: #05030a; opacity: 0; z-index: 22;
+  animation: rs-end 4400ms linear forwards; }
+@keyframes rs-end { 0%, 90% { opacity: 0; } 100% { opacity: 1; } }
 
-/* préférences d'accessibilité */
+/* ── Accessibilité ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .rs-parts i { animation: none; opacity: .5; }
+  .rs-parts i, .rs-speed { animation: none !important; }
+  .rs-cam { transition: none; }
 }
