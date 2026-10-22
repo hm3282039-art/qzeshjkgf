@@ -75,6 +75,17 @@ import pAuroreUrl from './assets/portrait_aurore.webp';
 import zephyrUrl from './assets/hero_zephyr.webp';
 import pZephyrUrl from './assets/portrait_zephyr.webp';
 import type { SceneId, TextureKey } from './data/heroes';
+import ultKaelUrl from './assets/ult_kael.webp';
+import ultLyraUrl from './assets/ult_lyra.webp';
+import ultMorwenUrl from './assets/ult_morwen.webp';
+import ultSerenUrl from './assets/ult_seren.webp';
+import ultAldricUrl from './assets/ult_aldric.webp';
+import ultThorneUrl from './assets/ult_thorne.webp';
+import ultNyxUrl from './assets/ult_nyx.webp';
+import ultAshkaUrl from './assets/ult_ashka.webp';
+import ultVaelenUrl from './assets/ult_vaelen.webp';
+import ultSylvaineUrl from './assets/ult_sylvaine.webp';
+
 
 export interface GameTextures {
   sky: Texture;
@@ -315,3 +326,21 @@ export async function loadAssets(
   );
   return { textures: Object.fromEntries(loaded) as unknown as GameTextures, failed };
 }
+
+/**
+ * Illustrations d'ultime : une vraie image dessinée pour le moment où le héros
+ * lâche son ultime (plan large, pose dynamique). Elles n'existent pas encore
+ * pour tout le casting : `undefined` = on retombe sur l'animation d'origine.
+ */
+export const ULT_ART: Partial<Record<string, string>> = {
+  kael: ultKaelUrl,
+  lyra: ultLyraUrl,
+  morwen: ultMorwenUrl,
+  seren: ultSerenUrl,
+  aldric: ultAldricUrl,
+  thorne: ultThorneUrl,
+  nyx: ultNyxUrl,
+  ashka: ultAshkaUrl,
+  vaelen: ultVaelenUrl,
+  sylvaine: ultSylvaineUrl,
+};

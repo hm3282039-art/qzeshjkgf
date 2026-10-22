@@ -433,7 +433,7 @@
 .lab-style b { font-size: 0.82rem; color: #f2eaff; letter-spacing: 0.04em; }
 .lab-style em { font-size: 0.6rem; font-style: normal; color: #8a7aa8; letter-spacing: 0.04em; }
 
-.lab-roster { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.2rem; scrollbar-width: thin;
+.lab-roster { display: flex; flex-wrap: wrap; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.2rem; scrollbar-width: thin; align-content: flex-start;
   scrollbar-color: #4a3a6a transparent; flex: 0 0 auto; }
 .lab-hero { flex: 0 0 auto; width: 3.2rem; text-align: center; opacity: 0.55; transition: 0.15s; }
 .lab-hero img { width: 3.2rem; height: 3.2rem; border-radius: 0.4rem; object-fit: cover; border: 1px solid #33284a; }
@@ -442,6 +442,11 @@
 .lab-hero.on { opacity: 1; }
 .lab-hero.on img { border-color: var(--c, #ffd36a); box-shadow: 0 0 0.8rem var(--c, #ffd36a); }
 .lab-hero.on span { color: #ffe9b0; }
+.lab-hero { position: relative; }
+.lab-hero.has-art::after { content: ''; position: absolute; top: -2px; right: -2px; width: .42rem; height: .42rem;
+  border-radius: 50%; background: #ffd36a; box-shadow: 0 0 0.5rem #ffd36a; }
+.lab-roster::before { content: 'pastille dorée = illustration d’ultime déjà dessinée'; flex: 0 0 100%;
+  font-size: .54rem; color: #7d719b; letter-spacing: .08em; }
 
 @media (max-width: 760px) {
   .lab-styles { grid-template-columns: repeat(2, 1fr); }

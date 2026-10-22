@@ -129,6 +129,8 @@ const GLYPHS: Record<Motif, string> = {
 };
 
 export interface UltData {
+  /** Identifiant du héros (sert à retrouver son illustration d'ultime). */
+  id: string;
   /** Nom de l'ultime (« Serment de Cendre »…). */
   name: string;
   hero: string;
@@ -157,6 +159,7 @@ export function ultDataOf(h: HeroDef): UltData {
   const sig = signatureOf(h);
   const arch = archetypeOf(h.abilities.ultimate.text, h.role, h.id);
   return {
+    id: h.id,
     arch,
     archLabel: ARCHETYPES.find((a) => a.id === arch)?.label ?? '',
     name: h.abilities.ultimate.name,

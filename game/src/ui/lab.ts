@@ -1,5 +1,5 @@
 import { HEROES } from '../data/heroes';
-import { PORTRAITS } from '../assets';
+import { PORTRAITS, ULT_ART } from '../assets';
 import { audio } from '../audio/AudioEngine';
 import {
   ARCHETYPES,
@@ -126,7 +126,7 @@ export function mountLab(): void {
 
   const stop = (): void => {
     window.clearTimeout(timer); window.clearTimeout(loop);
-    stage.querySelectorAll('.ult, .ucf, .cs').forEach((n) => n.remove());
+    stage.querySelectorAll('.ult, .ucf, .ca').forEach((n) => n.remove());
   };
 
   const markers = (): Mark[] => (mode === 'cine' ? MARKS_CINE : mode === 'full' ? MARKS_FULL : []);
@@ -173,7 +173,7 @@ export function mountLab(): void {
       : fullUltHTML(style, d, { lab: true }));
     runProgress(dur, true);
     if (mode === 'cine' && sound && audioReady) cineSound();
-    const cls = mode === 'cine' ? '.cs' : '.ucf';
+    const cls = mode === 'cine' ? '.ca' : '.ucf';
     timer = window.setTimeout(() => {
       stage.querySelectorAll(cls).forEach((n) => n.remove());
       if (!once) loop = window.setTimeout(play, mode === 'cine' ? 700 : 900);
@@ -230,7 +230,7 @@ export function mountLab(): void {
     }
     const dur = mode === 'cine' ? CINE_MS : fullDuration(style);
     const what = mode === 'cine'
-      ? '7 plans : large → visage → contre-jour → élan → impact → nom → sortie'
+      ? `7 plans : large → illustration → blanc → détail → impact → nom → sortie${ULT_ART[def.id] ? '' : ' (portrait : illustration à venir)'}`
       : 'un seul plan continu, 5 actes';
     info.innerHTML = `<div class="li-txt"><b>${s.letter} · ${s.name} — ${arch.label}</b><span>${what}. ${arch.show}</span></div>
       <div class="li-meta">${(dur / 1000).toFixed(1)} s · ${def.name} · « ${d.name} »</div>`;
@@ -239,8 +239,9 @@ export function mountLab(): void {
   const drawRoster = (): void => {
     rosterEl.innerHTML = HEROES.map((h) => {
       const a = ultDataOf(h).arch;
-      return `<button class="lab-hero${h.id === heroId ? ' on' : ''}" data-hero="${h.id}" style="--c:${h.css}"
-        title="${h.name} — ${ARCHETYPES.find((x) => x.id === a)?.label}">
+      const hasArt = Boolean(ULT_ART[h.id]);
+      return `<button class="lab-hero${h.id === heroId ? ' on' : ''}${hasArt ? ' has-art' : ''}" data-hero="${h.id}" style="--c:${h.css}"
+        title="${h.name} — ${ARCHETYPES.find((x) => x.id === a)?.label}${hasArt ? ' · illustration d’ultime' : ' · portrait (illustration à venir)'}">
         <img src="${PORTRAITS[h.id]}" alt="" draggable="false"/>
         <span>${h.name}</span>
       </button>`;

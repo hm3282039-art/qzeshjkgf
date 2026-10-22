@@ -10,6 +10,7 @@ import { HEROES } from '../src/data/heroes';
 import { ARCHETYPES, ULT_STYLES, archetypeOf, ultDataOf, ultDuration, ultHTML } from '../src/ui/ultimate';
 import { fullDuration, fullUltHTML } from '../src/ui/ultimate-full';
 import { CINE_MS, CINE_SHOTS, cineDuration, cineHTML } from '../src/ui/ultimate-cine';
+import { ULT_ART } from '../src/assets';
 
 /* ---------- 1. Le carton du nom : 4 styles × 27 héros ---------- */
 const signatures = {
@@ -71,8 +72,8 @@ for (let i = 1; i < CINE_SHOTS.length; i++) {
 const last = CINE_SHOTS[CINE_SHOTS.length - 1]!;
 if (last.at + last.dur > CINE_MS + 1) throw new Error('le dernier plan dépasse la durée totale');
 
-const CINE_MARKERS = ['cs-s1', 'cs-s2', 'cs-s3', 'cs-s4', 'cs-s5', 'cs-s6', 'cs-s7',
-  'cs-portrait', 'cs-sil2', 'cs-run', 'cs-foes-hit', 'cs-title', 'cs-end', 'cs-glyph'];
+const CINE_MARKERS = ['ca-s1', 'ca-s2', 'ca-s3', 'ca-s4', 'ca-s5', 'ca-s6', 'ca-s7',
+  'ca-art', 'ca-sil', 'ca-foes-far', 'ca-shock', 'ca-hits', 'ca-title', 'ca-glyph', 'ca-lunge'];
 let c = 0;
 for (const s of FULL_STYLES) {
   for (const h of HEROES) {
@@ -83,8 +84,10 @@ for (const s of FULL_STYLES) {
       if (!html.includes(m)) throw new Error(`ciné ${s}/${h.id} : « ${m} » manquant`);
     }
     if (!html.includes(`arch-${d.arch}`)) throw new Error(`ciné ${s}/${h.id} : archétype absurde`);
-    if (!html.includes(d.portrait)) throw new Error(`ciné ${s}/${h.id} : pas de portrait (gros plan)`);
-    const titleBlock = html.slice(html.indexOf('cs-title'));
+    const expectedArt = ULT_ART[d.id] ?? d.portrait;
+    if (!html.includes(expectedArt)) throw new Error(`ciné ${s}/${h.id} : illustration absente`);
+    if (ULT_ART[d.id] && html.includes(d.portrait)) throw new Error(`ciné ${s}/${h.id} : portrait au lieu de l'illustration`);
+    const titleBlock = html.slice(html.indexOf('ca-title'));
     const titleLetters = (titleBlock.match(/<i style="--i:\d+">[^<]*<\/i>/g) ?? []).length;
     if (titleLetters !== d.name.replace(/ /g, '').length) {
       throw new Error(`ciné ${s}/${h.id} : ${titleLetters} lettres au carton pour « ${d.name} »`);
@@ -92,7 +95,8 @@ for (const s of FULL_STYLES) {
     c++;
   }
 }
-console.log(`Cinématique · 7 plans · ${CINE_MS} ms · ${c} scènes (2 styles × ${HEROES.length} héros)`);
+const withArt = HEROES.filter((h) => ULT_ART[h.id]).length;
+console.log(`Cinématique · 7 plans · ${CINE_MS} ms · ${c} scènes · ${withArt}/${HEROES.length} héros illustrés`);
 
 /* ---------- 3. Couverture des 6 archétypes ---------- */
 const missing = ARCHETYPES.filter((a) => !used.has(a.id));
@@ -120,10 +124,10 @@ if (modes.length !== 3) throw new Error(`3 modes attendus, ${modes.length} trouv
 if (styles.length !== ULT_STYLES.length) throw new Error(`${ULT_STYLES.length} styles attendus, ${styles.length} trouvés`);
 if (heroes.length !== HEROES.length) throw new Error(`${HEROES.length} héros attendus, ${heroes.length} trouvés`);
 if (acts.length !== CINE_SHOTS.length) throw new Error(`${CINE_SHOTS.length} repères attendus, ${acts.length} trouvés`);
-const firstScene = document.querySelector('[data-stage] .cs');
+const firstScene = document.querySelector('[data-stage] .ca');
 if (!firstScene) throw new Error('aucune cinématique montée par défaut');
-if (!firstScene.className.includes('cs-a')) throw new Error('cinématique sans style identifiable');
-if (document.querySelectorAll('[data-stage] .cs-shot').length !== 7) throw new Error('7 plans attendus dans le DOM');
+if (!firstScene.className.includes('ca-a')) throw new Error('cinématique sans style identifiable');
+if (document.querySelectorAll('[data-stage] .ca-shot').length !== 7) throw new Error('7 plans attendus dans le DOM');
 
 // On bascule en mode « révélation » : le carton doit apparaître.
 (document.querySelector('[data-mode="card"]') as HTMLElement).dispatchEvent(new window.Event('click'));
