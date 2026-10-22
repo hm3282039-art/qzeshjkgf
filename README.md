@@ -1,37 +1,67 @@
-# Mon jeu web
+# Légendes de la Tour Infinie
 
-Projet de jeu web — repo volontairement léger : **le code ici, les assets lourds sur un CDN.**
+Jeu web dark fantasy en 2.5D — **PixiJS + TypeScript + Vite**.
 
-## Démarrer
+## ▶️ Jouer
 
+### En ligne (aucune installation)
+**https://hm3282039-art.github.io/qzeshjkgf/**
+
+Ouvre le lien, appuie sur **`Entrée`** pour le plein écran.
+Fonctionne sur PC, tablette et téléphone.
+
+### En local
 ```bash
+cd game
 npm install
-npm run dev
+npm run dev          # → http://localhost:5173
 ```
 
-## Règles du projet
+## 🛠️ Développement
 
-1. Le repo ne contient que du texte (code, config, manifest) et des assets optimisés.
-2. Pas de `node_modules/`, `dist/`, `build/`, ni sources `.psd` / `.blend` / `.wav` / `.fbx`.
-3. Les assets sont décrits dans `public/assets/manifest.json` et servis depuis un CDN.
-4. On charge par bundle (menu, niveau 1, niveau 2…) — jamais tout au démarrage.
-5. Avant chaque grosse étape : `git count-objects -vH` pour surveiller la taille.
-
-📖 Tout le détail de la stratégie : [`docs/strategie-128mb.md`](docs/strategie-128mb.md)
-
-📦 Faire inspecter un projet existant et lourd : [`docs/partager-projet-existant.md`](docs/partager-projet-existant.md)
-
-🐙 Mettre le projet sur GitHub pas à pas : [`docs/mettre-sur-github.md`](docs/mettre-sur-github.md)
-
-🛡️ Vérifier le poids avant chaque push :
 ```bash
-node scripts/check-taille.mjs --staged
+cd game
+npm run dev          # serveur de développement (rechargement à chaud)
+npm run build        # produit dist/index.html (un seul fichier autonome)
+npm run typecheck    # vérification TypeScript stricte
+npm test             # 360 combats simulés : crashs, NaN, blocages
+npm run test:balance   # équilibrage de l'équipe par défaut
+npm run test:niveaux   # paliers de compétence et progression
 ```
 
-## Structure
+## 🚀 Publier une mise à jour
+
+```bash
+./deploy.sh "ce qui a changé"
+```
+
+Le script compile, vérifie les types, puis pousse sur la branche `gh-pages`.
+Le jeu est en ligne 1 à 2 minutes plus tard.
+
+## 📁 Structure
 
 ```
-docs/strategie-128mb.md      # la stratégie anti-limite
-public/assets/manifest.json  # description des assets (versionné)
-src/assets/loader.js         # chargement à la demande depuis le CDN
+game/
+├── src/
+│   ├── battle/     combat : simulation pure (Sim.ts) + rendu (BattleScene)
+│   ├── scene/      hub 2.5D de Cendrebourg
+│   ├── ui/         interface, héros, invocation, formation
+│   ├── fx/         effets et textures procédurales
+│   ├── data/       héros, ennemis, niveaux, répliques
+│   └── state/      sauvegarde, niveaux, progression
+└── tests/          bancs de test headless du combat
 ```
+
+## ✅ État
+
+- 11 héros jouables, 2 niveaux de campagne
+- Système de niveaux **sans plafond** : +25 % de compétence tous les 10 niveaux
+- Compilation **0 erreur** en mode strict, build en ~6 s
+- 360 combats simulés : 0 crash, 0 NaN, 0 blocage
+
+## 📖 Documentation
+
+- [`docs/strategie-128mb.md`](docs/strategie-128mb.md) — tenir dans la limite de taille
+- [`docs/mise-a-jour-heros.md`](docs/mise-a-jour-heros.md) — 3 héros + système de niveaux
+- [`docs/rapport-de-test.md`](docs/rapport-de-test.md) — audit du combat et équilibrage
+- [`docs/audit-legende-tour-infinie.md`](docs/audit-legende-tour-infinie.md) — audit du projet

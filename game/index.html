@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Légendes de la Tour Infinie</title>
+</head>
+<body>
+  <div id="loader">
+    <svg class="rune-ring" viewBox="0 0 200 200" aria-hidden="true">
+      <defs><path id="rp" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" /></defs>
+      <g class="r1" fill="none" stroke="#d8b45a">
+        <circle cx="100" cy="100" r="92" stroke-width="0.6" />
+        <circle cx="100" cy="100" r="86" stroke-width="0.3" stroke-dasharray="2 3" />
+        <text font-size="9" fill="#d8b45a" stroke="none" letter-spacing="4"><textPath href="#rp">ᚠᚢᚦᚨᚱᚲ ᚷᚹᚺᚾᛁᛃ ᛇᛈᛉᛊᛏᛒ ᛖᛗᛚᛜᛞᛟ ᚠᚢᚦᚨᚱᚲ ᚷᚹᚺᚾᛁᛃ</textPath></text>
+      </g>
+      <g class="r2" fill="none" stroke="#c2183c" stroke-width="0.6">
+        <circle cx="100" cy="100" r="64" />
+        <polygon points="100,38 154,131 46,131" />
+        <polygon points="100,162 46,69 154,69" />
+      </g>
+    </svg>
+    <div class="loader-inner">
+      <div class="loader-title">Légendes de la<br /><span>Tour Infinie</span></div>
+      <div class="loader-bar"><i id="loader-fill"></i></div>
+      <div class="loader-text" id="loader-text">Invocation du monde…</div>
+    </div>
+  </div>
+  <div id="game"></div>
+  <div id="ui"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

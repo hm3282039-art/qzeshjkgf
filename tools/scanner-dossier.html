@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scanner de dossier — quel fichier envoyer sur GitHub ?</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --border: #262b38;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --accent: #4f8cff;
+    --ok: #3ddc97;
+    --warn: #ffb454;
+    --danger: #ff5c7a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 20px 60px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.3px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
+
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+    padding: 40px 24px;
+    text-align: center;
+    transition: border-color .15s, background .15s;
+  }
+  .drop:hover { border-color: var(--accent); }
+  .drop label {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    padding: 12px 26px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: filter .15s;
+  }
+  .drop label:hover { filter: brightness(1.1); }
+  .drop p { color: var(--muted); margin: 16px 0 0; font-size: 13.5px; }
+  input[type=file] { display: none; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 26px 0; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 11px; padding: 16px; }
+  .card .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .card .v { font-size: 22px; font-weight: 700; margin-top: 4px; }
+
+  .alert { border-radius: 11px; padding: 14px 16px; margin: 12px 0; font-size: 14px; border: 1px solid; }
+  .alert.ok { background: rgba(61,220,151,.08); border-color: rgba(61,220,151,.4); }
+  .alert.warn { background: rgba(255,180,84,.08); border-color: rgba(255,180,84,.4); }
+  .alert.danger { background: rgba(255,92,122,.08); border-color: rgba(255,92,122,.4); }
+  .alert b { display: block; margin-bottom: 4px; }
+
+  h2 { font-size: 17px; margin: 30px 0 12px; }
+  pre {
+    background: #0b0d12;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 16px;
+    overflow: auto;
+    font-size: 12.5px;
+    line-height: 1.55;
+    max-height: 480px;
+    white-space: pre;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    color: #c9d1e0;
+  }
+  .copy {
+    margin-top: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .copy:hover { filter: brightness(1.1); }
+  .hidden { display: none; }
+  .tree-line { color: #c9d1e0; }
+  .foot { color: var(--muted); font-size: 12.5px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔍 Scanner de dossier de jeu</h1>
+  <p class="sub">Sélectionne le dossier de ton jeu. Tout se passe dans ton navigateur — aucun fichier n'est envoyé nulle part.</p>
+
+  <div class="drop">
+    <label for="picker">Choisir mon dossier de jeu</label>
+    <input type="file" id="picker" webkitdirectory directory multiple>
+    <p>Choisis le dossier le plus HAUT qui contient ton jeu.</p>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="cards" id="cards"></div>
+    <div id="alerts"></div>
+
+    <h2>📋 Rapport à copier-coller dans le chat</h2>
+    <pre id="report"></pre>
+    <button class="copy" id="copyBtn">Copier le rapport</button>
+  </div>
+
+  <p class="foot">
+    Cet outil ne lit que les noms et les tailles des fichiers. Aucune donnée ne quitte ton ordinateur.
+  </p>
+</div>
+
+<script>
+const GROS = 1024 * 1024;            // 1 MB
+const IGNORE = new Set(['.git', 'node_modules', 'dist', 'build', 'out', '.next', '.cache', '.vite', 'coverage']);
+
+const picker = document.getElementById('picker');
+const results = document.getElementById('results');
+const cards = document.getElementById('cards');
+const alerts = document.getElementById('alerts');
+const report = document.getElementById('report');
+const copyBtn = document.getElementById('copyBtn');
+
+const fmt = (b) => {
+  if (b >= 1024 * 1024 * 1024) return (b / 1073741824).toFixed(2) + ' GB';
+  if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
+  if (b >= 1024) return (b / 1024).toFixed(0) + ' KB';
+  return b + ' B';
+};
+
+const ext = (name) => {
+  const i = name.lastIndexOf('.');
+  return i > 0 ? name.slice(i + 1).toLowerCase() : '(sans ext)';
+};
+
+picker.addEventListener('change', () => {
+  const files = Array.from(picker.files);
+  if (!files.length) return;
+
+  // Racine : le premier segment du chemin relatif
+  const root = files[0].webkitRelativePath.split('/')[0] || 'dossier';
+
+  const rows = files.map((f) => ({
+    path: f.webkitRelativePath || f.name,
+    size: f.size,
+  }));
+
+  const total = rows.reduce((s, r) => s + r.size, 0);
+  const rel = rows.map((r) => ({ ...r, rel: r.path.slice(root.length + 1) }));
+
+  // Dossiers spéciaux
+  const inIgnored = rel.filter((r) => r.rel.split('/').some((seg) => IGNORE.has(seg)));
+  const hasGit = rel.some((r) => r.rel.split('/').includes('.git'));
+  const hasNodeModules = rel.some((r) => r.rel.split('/').includes('node_modules'));
+
+  // index.html
+  const indexFiles = rel.filter((r) => /(^|\/)index\.html$/i.test(r.rel));
+
+  // Plus gros fichiers
+  const biggest = [...rel].sort((a, b) => b.size - a.size).slice(0, 25);
+
+  // Répartition par extension
+  const byExt = new Map();
+  for (const r of rel) {
+    const e = ext(r.rel);
+    const cur = byExt.get(e) || { n: 0, size: 0 };
+    cur.n++; cur.size += r.size;
+    byExt.set(e, cur);
+  }
+  const extList = [...byExt.entries()].sort((a, b) => b[1].size - a[1].size).slice(0, 15);
+
+  // Niveaux d'imbrication
+  const depths = rel.map((r) => r.rel.split('/').length - 1);
+  const maxDepth = Math.max(...depths, 0);
+
+  // ---- Cartes ----
+  cards.innerHTML = [
+    ['Dossier', root],
+    ['Fichiers', rows.length.toLocaleString('fr-FR')],
+    ['Taille totale', fmt(total)],
+    ['Profondeur max', maxDepth + ' niveau' + (maxDepth > 1 ? 'x' : '')],
+  ].map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+
+  // ---- Alertes ----
+  const A = [];
+  if (hasGit) A.push(['danger', '⚠️ Un dossier .git est présent',
+    "Ton jeu contient un dépôt Git imbriqué. GitHub Desktop le montre comme un dossier grisé et n'envoie pas son contenu. C'est très probablement TON problème."]);
+  if (hasNodeModules) A.push(['warn', '📦 node_modules détecté',
+    "Ce dossier ne doit JAMAIS aller sur GitHub (des centaines de MB, des milliers de fichiers)."]);
+  if (inIgnored.length) A.push(['warn', `${inIgnored.length} fichiers dans des dossiers à exclure`,
+    'Dossiers concernés : ' + [...new Set(inIgnored.map(r => r.rel.split('/').find(s => IGNORE.has(s))))].join(', ')]);
+  if (total > 100 * GROS) A.push(['danger', `Total ${fmt(total)} : trop lourd pour GitHub`,
+    "Au-delà de 100 MB, le push sera lent ou refusé. Il faut trier avant d'envoyer."]);
+  if (indexFiles.length === 0) A.push(['warn', 'Aucun index.html trouvé',
+    "Vérifie que tu as bien choisi le dossier du jeu, et pas un dossier parent vide."]);
+  if (indexFiles.length > 1) A.push(['warn', `${indexFiles.length} fichiers index.html trouvés`,
+    "C'est normal si tu as plusieurs versions. La liste est ci-dessous : dis-moi lequel est le bon."]);
+  if (indexFiles.length === 1) {
+    const depth = indexFiles[0].rel.split('/').length - 1;
+    if (depth === 0) A.push(['ok', '✅ index.html est à la racine du dossier choisi',
+      "C'est le bon niveau : ce dossier peut être publié tel quel sur GitHub."]);
+    else A.push(['warn', `index.html est ${depth} niveau(x) plus bas`,
+      `Chemin : ${indexFiles[0].rel}<br>→ Sélectionne plutôt le dossier qui le contient directement (voir plus bas).`]);
+  }
+  if (biggest[0] && biggest[0].size >= 50 * GROS) A.push(['danger', `Un fichier fait ${fmt(biggest[0].size)}`,
+    "GitHub refuse au-delà de 100 MB et avertit dès 50 MB. Ce fichier doit aller sur un CDN, pas dans Git."]);
+
+  alerts.innerHTML = A.map(([cls, title, body]) =>
+    `<div class="alert ${cls}"><b>${title}</b>${body}</div>`).join('');
+
+  // ---- Arborescence ----
+  const tree = buildTree(rel);
+
+  // ---- Rapport texte ----
+  const L = [];
+  L.push('=== SCAN DU DOSSIER ===');
+  L.push(`Dossier      : ${root}`);
+  L.push(`Fichiers     : ${rows.length}`);
+  L.push(`Taille totale: ${fmt(total)}`);
+  L.push(`Profondeur   : ${maxDepth} niveau(x)`);
+  L.push(`index.html   : ${indexFiles.length ? indexFiles.map(f => f.rel).join(', ') : 'AUCUN'}`);
+  L.push(`Contient .git: ${hasGit ? 'OUI (PROBLEME)' : 'non'}`);
+  L.push(`node_modules : ${hasNodeModules ? 'OUI' : 'non'}`);
+  L.push('');
+  L.push('--- ARBORESCENCE (3 premiers niveaux) ---');
+  L.push(tree);
+  L.push('');
+  L.push('--- 25 PLUS GROS FICHIERS ---');
+  for (const f of biggest) L.push(`${fmt(f.size).padStart(10)}  ${f.rel}`);
+  L.push('');
+  L.push('--- REPARTITION PAR EXTENSION ---');
+  for (const [e, v] of extList) L.push(`${e.padEnd(12)} ${String(v.n).padStart(5)} fichiers  ${fmt(v.size).padStart(10)}`);
+  L.push('');
+  L.push('(rapport genere par scanner-dossier.html)');
+
+  report.textContent = L.join('\n');
+  results.classList.remove('hidden');
+});
+
+function buildTree(rel, maxDepth = 3) {
+  const tree = {};
+  for (const r of rel) {
+    const parts = r.rel.split('/');
+    if (parts.length - 1 > maxDepth) continue;
+    let node = tree;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const isFile = i === parts.length - 1;
+      if (isFile) {
+        node['\u0000' + p] = r.size;
+      } else {
+        node[p] = node[p] || {};
+        node = node[p];
+      }
+    }
+  }
+
+  const lines = [];
+  const walk = (node, prefix = '') => {
+    const dirs = Object.keys(node).filter((k) => !k.startsWith('\u0000')).sort();
+    const files = Object.keys(node).filter((k) => k.startsWith('\u0000')).sort();
+    const entries = [...dirs.map((d) => [d, node[d], true]), ...files.map((f) => [f.slice(1), node[f], false])];
+    entries.forEach(([name, val, isDir], i) => {
+      const last = i === entries.length - 1;
+      const branch = last ? '└── ' : '├── ';
+      lines.push(prefix + branch + name + (isDir ? '/' : `  (${fmt(val)})`));
+      if (isDir) walk(val, prefix + (last ? '    ' : '│   '));
+    });
+  };
+  walk(tree, '');
+  return lines.join('\n');
+}
+
+copyBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(report.textContent);
+    copyBtn.textContent = '✅ Copié !';
+    setTimeout(() => (copyBtn.textContent = 'Copier le rapport'), 2000);
+  } catch {
+    const r = document.createRange();
+    r.selectNodeContents(report);
+    const s = getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+    copyBtn.textContent = 'Sélectionné — Ctrl+C';
+  }
+});
+</script>
+</body>
+</html>

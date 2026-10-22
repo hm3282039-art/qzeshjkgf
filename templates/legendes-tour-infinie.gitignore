@@ -1,0 +1,51 @@
+# =====================================================================
+#  .gitignore — Légendes de la Tour Infinie
+#  À placer à la RACINE du projet, nommé exactement ".gitignore"
+# =====================================================================
+
+# --- Dépendances (140 MB, 5 097 fichiers — jamais dans Git) ---
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# --- Builds (régénérables en 6 s avec `npm run build`) ---
+dist/
+build/
+out/
+*.tsbuildinfo
+.vite/
+coverage/
+stats.html
+
+# --- Artefact de build publié en Release, pas dans l'historique ---
+JOUER.html
+
+# --- Sources d'art originales (34 MB de PNG) ---
+#  Les exports optimisés vivent dans src/assets/*.webp
+#  Les originaux restent sur le disque / un Drive, pas dans Git.
+art-sources/
+
+# --- Fichiers système et éditeurs ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+npm-debug.log*
+yarn-error.log*
+.env
+.env.*
+!.env.example
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# --- Fichiers temporaires ---
+*.tmp
+*.bak
+*~

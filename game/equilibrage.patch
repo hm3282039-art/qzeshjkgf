@@ -1,0 +1,70 @@
+# Équilibrage du combat — Légendes de la Tour Infinie v0.5
+#
+# Applique :
+#   1. PV et ATQ de tous les ennemis x 0.80
+#   2. battleAuto active par defaut
+#
+# Application (depuis la racine du projet) :
+#   git apply equilibrage.patch
+#   git add -A && git commit -m "equilibrage: ennemis -20%, AUTO par defaut"
+#   git push
+#
+diff --git a/src/data/heroes.ts b/src/data/heroes.ts
+index bf44653..fb6ca05 100644
+--- a/src/data/heroes.ts
++++ b/src/data/heroes.ts
+@@ -172,34 +172,34 @@ export const HEROES: HeroDef[] = [
+ export const ENEMIES = {
+   ghoul: {
+     id: 'ghoul', name: 'Goule affamée', texture: 'enemy_ghoul', height: 165, facesRight: false, color: 0x9ac46a,
+-    stats: { hp: 2700, atk: 135, armor: 22, interval: 0.95, range: 130, speed: 230, crit: 0.08 },
++    stats: { hp: 2160, atk: 108, armor: 22, interval: 0.95, range: 130, speed: 230, crit: 0.08 },
+   },
+   skeleton: {
+     id: 'skeleton', name: 'Archer squelette', texture: 'enemy_skeleton', height: 215, facesRight: false, color: 0x6ae0ff,
+-    stats: { hp: 1750, atk: 160, armor: 15, interval: 1.45, range: 900, speed: 140, crit: 0.1 },
++    stats: { hp: 1400, atk: 128, armor: 15, interval: 1.45, range: 900, speed: 140, crit: 0.1 },
+     projectile: 'bone', muzzle: [70, 125],
+   },
+   warden: {
+     id: 'warden', name: 'Gardien d’Os', texture: 'enemy_boneknight', height: 285, facesRight: false, color: 0xff3bd0,
+-    stats: { hp: 11800, atk: 225, armor: 55, interval: 1.8, range: 175, speed: 120, crit: 0.1 },
++    stats: { hp: 9440, atk: 180, armor: 55, interval: 1.8, range: 175, speed: 120, crit: 0.1 },
+     skillCd: 7, skillFirst: 5,
+   },
+   spectral: {
+     id: 'spectral', name: 'Goule spectrale', texture: 'enemy_ghoul', height: 130, facesRight: false, color: 0x7affd0,
+-    stats: { hp: 650, atk: 48, armor: 15, interval: 1, range: 120, speed: 260, crit: 0.05 },
++    stats: { hp: 520, atk: 38, armor: 15, interval: 1, range: 120, speed: 260, crit: 0.05 },
+   },
+   drowned: {
+     id: 'drowned', name: 'Noyé', texture: 'enemy_drowned', height: 205, facesRight: false, color: 0x6ac8d8,
+-    stats: { hp: 3200, atk: 120, armor: 30, interval: 1.2, range: 130, speed: 170, crit: 0.06 },
++    stats: { hp: 2560, atk: 96, armor: 30, interval: 1.2, range: 130, speed: 170, crit: 0.06 },
+   },
+   witch: {
+     id: 'witch', name: 'Sorcière des marais', texture: 'enemy_witch', height: 210, facesRight: false, color: 0xffb02a,
+-    stats: { hp: 1900, atk: 150, armor: 14, interval: 1.6, range: 900, speed: 140, crit: 0.08 },
++    stats: { hp: 1520, atk: 120, armor: 14, interval: 1.6, range: 900, speed: 140, crit: 0.08 },
+     projectile: 'hex', muzzle: [92, 158], skillCd: 9, skillFirst: 4,
+   },
+   queen: {
+     id: 'queen', name: 'La Reine Noyée', texture: 'enemy_queen', height: 300, facesRight: false, color: 0x4ae0d0,
+-    stats: { hp: 16000, atk: 240, armor: 50, interval: 1.9, range: 190, speed: 110, crit: 0.1 },
++    stats: { hp: 12800, atk: 192, armor: 50, interval: 1.9, range: 190, speed: 110, crit: 0.1 },
+     skillCd: 7.5, skillFirst: 5,
+   },
+ } satisfies Record<string, UnitDef>;
+diff --git a/src/state/store.ts b/src/state/store.ts
+index 4b52058..304cd24 100644
+--- a/src/state/store.ts
++++ b/src/state/store.ts
+@@ -76,7 +76,7 @@ const defaults = (): SaveData => ({
+     energy: 60,
+     energyMax: 60,
+   },
+-  settings: { quality: 'high', showLabels: true, volume: 0.7, muted: false, battleAuto: false, battleSpeed: 1, showFps: false },
++  settings: { quality: 'high', showLabels: true, volume: 0.7, muted: false, battleAuto: true, battleSpeed: 1, showFps: false },
+   campaign: {},
+   heroes: STARTERS(),
+   team: HEROES.filter((h) => h.starter).map((h) => h.id),
