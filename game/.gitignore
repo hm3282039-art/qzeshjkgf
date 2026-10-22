@@ -1,0 +1,10 @@
+# Ce qui NE DOIT PAS aller sur GitHub
+
+# Les 140 MB de librairies telechargees (on les recupere avec npm install)
+node_modules/
+
+# Le dossier fabrique par le build (on le refait avec npm run build)
+dist/
+
+# Sources d'art générées (PNG + fond magenta) : hors du repo
+art-new/

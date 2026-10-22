@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "base": "https://cdn.example.com/mon-jeu/0.1.0/",
+  "budgetMb": { "menu": 3, "parNiveau": 8, "audio": 15 },
+  "bundles": {
+    "menu": [
+      "ui/logo.webp",
+      "ui/boutons.webp",
+      "audio/theme-menu.opus"
+    ],
+    "niveau1": [
+      "tiles/foret.webp",
+      "objets/atlas-n1.webp",
+      "audio/ambiance-n1.opus"
+    ]
+  }
+}

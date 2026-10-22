@@ -1,0 +1,84 @@
+# --- Dépendances ---
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# --- Builds / caches (jamais dans Git) ---
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+.turbo/
+.parcel-cache/
+.vite/
+coverage/
+*.tsbuildinfo
+stats.html
+
+# --- Tools & éditeurs ---
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# --- Sources d'art / audio lourdes (les exports optimisés vont sur le CDN) ---
+*.psd
+*.psb
+*.ai
+*.blend
+*.blend1
+*.fbx
+*.obj
+*.ztl
+*.spp
+*.aup3
+*.flp
+*.logicx
+*.rex
+*.wav
+*.aif
+*.aiff
+*.flac
+
+# --- Sources/atlas intermédiaires ---
+assets-src/
+_raw/
+*.aseprite
+*.kra
+
+# --- Assets lourds versionnés localement mais servis par le CDN ---
+# (on garde uniquement public/assets/manifest.json dans Git)
+public/assets/**
+!public/assets/manifest.json
+!public/assets/manifest.example.json
+
+# --- Exports moteurs ---
+*.pck
+*.wasm
+*.data
+*.unityweb
+*.br
+*.gz
+
+# --- Gros fichiers accidentels ---
+*.zip
+*.7z
+*.mp4
+*.mov
+*.webm
+*.glb
+*.gltf
+*.bin
