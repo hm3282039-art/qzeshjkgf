@@ -452,7 +452,7 @@ export class BattleHud extends Emitter<HudEvents> {
           <button class="bh-btn" data-b="quit" title="Quitter le combat">${icon('back')}</button>
         </div>
       </div>
-      <span class="bh-ver">v2.6.9</span>
+      <span class="bh-ver">v2.6.10</span>
       <div class="bh-cr" data-cr title="Ordre des tours (jauge de vitesse)"></div>
       <div class="bh-banner"></div>
       <div class="bh-tip" data-thint>Une seule unité agit à la fois.</div>
@@ -569,15 +569,14 @@ export class BattleHud extends Emitter<HudEvents> {
     const vw = window.innerWidth || 2000;
     const vh = window.innerHeight || 1100;
     const kill: HTMLElement[] = [];
-    this.el.querySelectorAll('button, div, span, em').forEach((n) => {
+    document.querySelectorAll('button, div, span, em').forEach((n) => {
       const el = n as HTMLElement;
       const r = el.getBoundingClientRect();
       if (r.width < 34 || r.width > 150 || r.height < 34 || r.height > 150) return;
       if (r.left > vw * 0.22 || r.top < vh * 0.6 || r.top > vh * 0.98) return;
-      if (el.closest('[data-tskills]') || el.closest('[data-cr]') || el.closest('.bh-cards') || el.closest('.bh-ver')) return;
+      if (el.closest('[data-tskills]') || el.closest('[data-cr]') || el.closest('.bh-cards') || el.closest('.bh-ver') || el.closest('.sfx')) return;
       const rad = parseFloat(getComputedStyle(el).borderRadius) || 0;
       if (rad > 18) return;
-      if (el.querySelector('img')) return;
       kill.push(el);
     });
     for (const el of kill) {

@@ -32,6 +32,9 @@ export interface TurnUi {
 
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
+/** Point de retour d'un perso qui s'est déplacé pendant sa capacité. */
+type HomeBack = { v: { x: number; y: number }; hx: number; hy: number };
+
 /**
  * Chorégraphies DÉDIÉES par héros et par capacité (les effets du combat temps
  * réel d'origine : bouclier, saut, slam…), complétées UN PAR UN à mesure qu'on
@@ -50,6 +53,19 @@ const HERO_FX: Record<string, { cast: string[][]; impact: string[] }> = {
 };
 
 export class TurnController {
+  private pendingHome: HomeBack | null = null;
+
+  /** Fait glisser une unité vue par la scène (elle marche/court vraiment). */
+  private async glide(v: { x: number; y: number }, tx: number, ty: number, ms: number): Promise<void> {
+    const x0 = v.x, y0 = v.y;
+    const steps = 6;
+    for (let i = 1; i <= steps; i++) {
+      v.x = x0 + (tx - x0) * (i / steps);
+      v.y = y0 + (ty - y0) * (i / steps);
+      await wait(ms / steps / this.speed);
+    }
+  }
+
   auto = false;
   speed: 1 | 2 | 4 = 1;
   /** Nombre de tours déjà joués (0 = le placement peut encore être changé). */
@@ -215,6 +231,11 @@ export class TurnController {
       if (this.dead || here !== this.epoch) return;
       switch (e.type) {
         case 'turn':
+          if (this.pendingHome) {
+            const ph = this.pendingHome;
+            this.pendingHome = null;
+            await this.glide(ph.v, ph.hx, ph.hy, 220);
+          }
           this.bridge.syncAll();
           this.ui.state();
           break;
@@ -256,6 +277,24 @@ export class TurnController {
             if (cidx === 0) this.ui.skillFx('slash', sk?.name ?? 'Lame de Braise');
             else if (cidx === 1) this.ui.skillFx('shield', sk?.name ?? 'Bouclier de Cendres');
             else if (cidx === 3) this.ui.skillFx('ult', sk?.name ?? 'Jugement Ardent');
+          }
+          // Le perso BOUGE vraiment, différemment selon la capacité :
+          // 1 = il court sur l'ennemi et revient · 2 = pas en arrière, il plante
+          // son bouclier · 3 = passif · 4 = il saute dans le tas et y reste.
+          if (chid === 'kael' && cu) {
+            const hx = cu.x, hy = cu.y;
+            const foe = this.battle.foes.find((f) => f.alive);
+            const fv = foe ? b.view(foe.uid) : undefined;
+            if (cidx === 0 && fv) {
+              await this.glide(cu, fv.x - 170, fv.y, 200);
+              await this.glide(cu, hx, hy, 200);
+            } else if (cidx === 1) {
+              await this.glide(cu, hx - 70, hy, 130);
+              await this.glide(cu, hx, hy, 170);
+            } else if (cidx === 3 && fv) {
+              await this.glide(cu, fv.x - 130, fv.y, 170);
+              this.pendingHome = { v: cu, hx, hy };
+            }
           }
           break;
         }
