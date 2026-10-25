@@ -452,7 +452,7 @@ export class BattleHud extends Emitter<HudEvents> {
           <button class="bh-btn" data-b="quit" title="Quitter le combat">${icon('back')}</button>
         </div>
       </div>
-      <span class="bh-ver">v2.6.11</span>
+      <span class="bh-ver">v2.6.12</span>
       <div class="bh-cr" data-cr title="Ordre des tours (jauge de vitesse)"></div>
       <div class="bh-banner"></div>
       <div class="bh-tip" data-thint>Une seule unité agit à la fois.</div>
@@ -590,6 +590,19 @@ export class BattleHud extends Emitter<HudEvents> {
       console.warn('[hud] parasite retiré :', el.tagName, el.className);
       document.title = `parasite: ${el.tagName}.${String(el.className).slice(0, 40)}`;
       el.remove();
+    }
+    if (kill.length === 0) {
+      // Rien à tuer : on LISTE ce qui occupe la zone, dans le titre de l'onglet.
+      const rep: string[] = [];
+      document.querySelectorAll('*').forEach((n) => {
+        const el = n as HTMLElement;
+        const r = el.getBoundingClientRect();
+        if (r.width < 20 || r.width > 200 || r.height < 20 || r.height > 200) return;
+        if (r.left > vw * 0.22 || r.top < vh * 0.55 || r.top > vh * 0.99) return;
+        rep.push(`${el.tagName}.${String(el.className || '').split(' ')[0] || '-'}`);
+      });
+      const t = `zone: ${rep.slice(0, 6).join(',') || 'vide'}`.slice(0, 90);
+      if (!document.title.startsWith('parasite')) document.title = t;
     }
   }
 

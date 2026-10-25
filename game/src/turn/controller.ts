@@ -56,14 +56,15 @@ export class TurnController {
   private pendingHome: HomeBack | null = null;
 
   /** Fait glisser une unité vue par la scène (elle marche/court vraiment). */
-  private async glide(v: { x: number; y: number }, tx: number, ty: number, ms: number): Promise<void> {
+  private async glide(v: { x: number; y: number }, tx: number, ty: number, ms: number, arc = 0): Promise<void> {
     const x0 = v.x, y0 = v.y;
-    const steps = 6;
+    const steps = 7;
     for (let i = 1; i <= steps; i++) {
       v.x = x0 + (tx - x0) * (i / steps);
-      v.y = y0 + (ty - y0) * (i / steps);
+      v.y = y0 + (ty - y0) * (i / steps) - arc * Math.sin((Math.PI * i) / steps);
       await wait(ms / steps / this.speed);
     }
+    v.y = ty;
   }
 
   auto = false;
@@ -287,13 +288,15 @@ export class TurnController {
             const foe = this.battle.foes.find((f) => f.alive);
             const fv = foe ? b.view(foe.uid) : undefined;
             if (cidx === 0 && fv) {
-              await this.glide(cu, fv.x - 170, fv.y, 200);
-              await this.glide(cu, hx, hy, 200);
+              // Course rapide au contact, petit bond, puis retour.
+              await this.glide(cu, fv.x - 170, fv.y, 190, 40);
+              await this.glide(cu, hx, hy, 190, 25);
             } else if (cidx === 1) {
-              await this.glide(cu, hx - 70, hy, 130);
-              await this.glide(cu, hx, hy, 170);
+              // Saut sur place : il plante son bouclier au sol (pas de déplacement).
+              await this.glide(cu, hx, hy, 300, 130);
             } else if (cidx === 3 && fv) {
-              await this.glide(cu, fv.x - 130, fv.y, 170);
+              // GRAND saut parabolique au cœur des ennemis, il y reste.
+              await this.glide(cu, fv.x - 120, fv.y, 240, 320);
               this.pendingHome = { v: cu, hx, hy };
             }
           }
