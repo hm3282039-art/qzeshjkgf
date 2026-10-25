@@ -4,6 +4,9 @@ on:
   push:
     branches: [arena/a5d44250-qzeshjkgf]
 
+permissions:
+  contents: write
+
 jobs:
   buildjob:
     runs-on: ubuntu-latest
