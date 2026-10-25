@@ -8,6 +8,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  administration: write
 
 concurrency:
   group: pages-deploy
@@ -29,6 +30,16 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: autorise cette branche a deployer (environnement github-pages)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/github-pages/deployment-branch-policies" \
+            -d "{\"name\":\"$GITHUB_REF_NAME\"}" \
+          || curl -sf -X DELETE -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/github-pages/deployment-branch-policies/69658649" \
+          || echo "regle impossible a modifier, on tente quand meme"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
