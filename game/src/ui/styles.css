@@ -2783,3 +2783,7 @@ body.in-battle .npc-bubble { display: none; }
 
 /* ---------- Numéro de version (page de test) ---------- */
 .bh-pick-ver { position: fixed; right: 10px; bottom: 8px; font: 700 11px system-ui, sans-serif; color: #8f86a8; letter-spacing: 0.06em; }
+
+/* ---------- v2.6.6 : en duel, la colonne de cartes en bas à gauche disparaît ---------- */
+.battle-hud.turn-mode .bh-cards { display: none; }
+.bh-ver { position: fixed; right: 10px; bottom: 6px; z-index: 70; font: 700 11px system-ui, sans-serif; color: #9a8fb5; letter-spacing: 0.06em; text-shadow: 0 1px 2px #000; }
