@@ -17,7 +17,7 @@ jobs:
         run: |
           npm ci
           npm run build
-      - name: publie sur gh-pages (convention du depot : build single-file)
+      - name: "publie sur gh-pages (convention du depot : build single-file)"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
