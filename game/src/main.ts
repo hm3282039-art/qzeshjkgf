@@ -17,7 +17,7 @@ import { audio } from './audio/AudioEngine';
 import { applyCursors, CURSORS } from './ui/cursors';
 import { BattleScene, type BattleResult } from './battle/BattleScene';
 import { BattleHud } from './ui/BattleHud';
-import { HEROES, STAGES, type StageDef, type TeamMember } from './data/heroes';
+import { HEROES, STAGES, type HeroDef, type StageDef, type TeamMember } from './data/heroes';
 import { trainingStage } from './data/training';
 import { isTowerStage, towerFloorOf, towerStage } from './data/tower';
 import { TurnBridge } from './turn/bridge';
@@ -222,24 +222,57 @@ async function boot(): Promise<void> {
   let benchEl: HTMLElement | null = null;
   let benchRoute = false;
   let benchStage: StageDef = STAGES.find((st) => st.id === '2-3') ?? STAGES[0]!;
-  let benchAuto = true;
+  /** Combat MANUEL : c'est le joueur qui choisit chaque coup, jamais d'auto. */
+  const benchAuto = false;
   const closeBench = (): void => { benchEl?.remove(); benchEl = null; };
+
+  /** Niveau du duel : même décor, UN SEUL méchant (le boss du niveau). */
+  const duelStage = (): StageDef => {
+    const base = benchStage.enemies.some((e) => e.boss)
+      ? benchStage
+      : STAGES.find((st) => st.enemies.some((e) => e.boss)) ?? benchStage;
+    const boss = base.enemies.find((e) => e.boss) ?? base.enemies[base.enemies.length - 1]!;
+    return {
+      ...base,
+      id: 'duel-test',
+      name: 'Duel d\u2019essai',
+      description: 'Toi contre lui, \u00e0 la main.',
+      enemies: [{ def: boss.def, x: 1420, y: 800, boss: true }],
+    };
+  };
+
+  /** Lance le duel : le h\u00e9ros choisi, SEUL, contre UN m\u00e9chant. */
+  const startDuel = (hero: HeroDef): void => {
+    const stage = duelStage();
+    const team: TeamMember[] = [{ def: hero, stars: 3, level: Math.max(hero.stars * 10, stage.level + 10) }];
+    const slots: (TeamMember | null)[] = [team[0]!, null, null, null, null, null];
+    launchTurn(stage, team, false, slots);
+    if (turn) turn.auto = benchAuto;
+  };
+
+  /** \u00c9cran de choix : on prend son perso AVANT de combattre (seuls les cr\u00e9\u00e9s sont jouables). */
   const mountBench = (): void => {
     closeBench();
     benchRoute = true;
-    // L'arène, tout de suite : le perso créé (Kael pour l'instant) mène l'équipe,
-    // les autres sont des silhouettes — on juge le perso EN combat, comme demandé.
-    const created = HEROES.filter((h) => HERO_ART_DONE[h.id]);
-    const lead = created[0] ?? HEROES[0]!;
-    const compagnons = store.team().filter((mn) => mn.def.id !== lead.id).slice(0, 4);
-    const team: TeamMember[] = [
-      { def: lead, stars: 3, level: Math.max(lead.stars * 10, benchStage.level + 10) },
-      ...compagnons,
-    ];
-    const slots: (TeamMember | null)[] = [null, null, null, null, null, null];
-    team.forEach((mn, i) => { slots[i] = mn; });
-    launchTurn(benchStage, team, false, slots);
-    if (turn) turn.auto = benchAuto;
+    const el = document.createElement('div');
+    el.className = 'bh-pick';
+    const cards = HEROES.map((h) => {
+      const done = !!HERO_ART_DONE[h.id];
+      return `<button class="bh-pick-card${done ? '' : ' bh-locked'}" data-hero="${h.id}"${done ? '' : ' disabled'}>
+        <img src="${PORTRAITS[h.id] ?? ''}" alt="${h.name}" />
+        <span class="bh-pick-name">${h.name}</span>
+        <span class="bh-pick-tag">${done ? 'JOUER \u25b6' : '\ud83d\udd12 bient\u00f4t'}</span>
+      </button>`;
+    }).join('');
+    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div>`;
+    el.querySelectorAll<HTMLButtonElement>('button[data-hero]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const hero = HEROES.find((h) => h.id === b.dataset.hero);
+        if (hero && HERO_ART_DONE[hero.id]) startDuel(hero);
+      });
+    });
+    document.body.appendChild(el);
+    benchEl = el;
   };
 
   const launch = (stage: StageDef, team = store.team(), training = false, place = true) => {
