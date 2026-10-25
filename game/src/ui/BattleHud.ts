@@ -452,7 +452,7 @@ export class BattleHud extends Emitter<HudEvents> {
           <button class="bh-btn" data-b="quit" title="Quitter le combat">${icon('back')}</button>
         </div>
       </div>
-      <span class="bh-ver">v2.6.8</span>
+      <span class="bh-ver">v2.6.9</span>
       <div class="bh-cr" data-cr title="Ordre des tours (jauge de vitesse)"></div>
       <div class="bh-banner"></div>
       <div class="bh-tip" data-thint>Une seule unité agit à la fois.</div>
@@ -507,6 +507,7 @@ export class BattleHud extends Emitter<HudEvents> {
 
     // Sécurité : aucun bouton de capacité ne doit traîner hors de la barre.
     this.el.querySelectorAll('.tb-skill').forEach((n) => { if (!n.closest('[data-tskills]')) n.remove(); });
+    this.straySweep();
     const skills = this.el.querySelector('[data-tskills]');
     if (skills) {
       skills.innerHTML = st.skills.map((sk, i) => sk ? `
@@ -547,11 +548,42 @@ export class BattleHud extends Emitter<HudEvents> {
    * CSS, donc visible même si la scène 3D ne montre rien. Slash traversant pour la
    * frappe, dôme pour le bouclier, flash plein écran pour l'ulti.
    */
-  skillFx(kind: 'slash' | 'shield' | 'ult'): void {
+  skillFx(kind: 'slash' | 'shield' | 'ult', label: string): void {
     const host = document.createElement('div');
     host.className = `sfx sfx-${kind}`;
+    const banner = document.createElement('b');
+    banner.className = 'sfx-name';
+    banner.textContent = label;
+    host.appendChild(banner);
     this.el.appendChild(host);
-    setTimeout(() => host.remove(), 950);
+    setTimeout(() => host.remove(), 1100);
+  }
+
+  /**
+   * Chasse au parasite : tout petit carré qui traîne en bas à gauche du HUD (hors
+   * barre de capacités, hors barre de tour) est retiré — mesuré à l'écran, donc
+   * quelle que soit son origine dans le DOM.
+   */
+  private straySweep(): void {
+    if (typeof window === 'undefined' || typeof getComputedStyle !== 'function') return;
+    const vw = window.innerWidth || 2000;
+    const vh = window.innerHeight || 1100;
+    const kill: HTMLElement[] = [];
+    this.el.querySelectorAll('button, div, span, em').forEach((n) => {
+      const el = n as HTMLElement;
+      const r = el.getBoundingClientRect();
+      if (r.width < 34 || r.width > 150 || r.height < 34 || r.height > 150) return;
+      if (r.left > vw * 0.22 || r.top < vh * 0.6 || r.top > vh * 0.98) return;
+      if (el.closest('[data-tskills]') || el.closest('[data-cr]') || el.closest('.bh-cards') || el.closest('.bh-ver')) return;
+      const rad = parseFloat(getComputedStyle(el).borderRadius) || 0;
+      if (rad > 18) return;
+      if (el.querySelector('img')) return;
+      kill.push(el);
+    });
+    for (const el of kill) {
+      console.warn('[hud] parasite retiré :', el.className);
+      el.remove();
+    }
   }
 
   setTurnHint(html: string): void {
