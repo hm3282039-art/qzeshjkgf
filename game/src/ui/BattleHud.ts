@@ -452,7 +452,7 @@ export class BattleHud extends Emitter<HudEvents> {
           <button class="bh-btn" data-b="quit" title="Quitter le combat">${icon('back')}</button>
         </div>
       </div>
-      <span class="bh-ver">v2.6.6</span>
+      <span class="bh-ver">v2.6.7</span>
       <div class="bh-cr" data-cr title="Ordre des tours (jauge de vitesse)"></div>
       <div class="bh-banner"></div>
       <div class="bh-tip" data-thint>Une seule unité agit à la fois.</div>
