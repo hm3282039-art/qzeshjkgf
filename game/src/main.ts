@@ -264,7 +264,7 @@ async function boot(): Promise<void> {
         <span class="bh-pick-tag">${done ? 'JOUER \u25b6' : '\ud83d\udd12 bient\u00f4t'}</span>
       </button>`;
     }).join('');
-    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div><span class="bh-pick-ver">v2.6.4</span>`;
+    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div><span class="bh-pick-ver">v2.6.5</span>`;
     el.querySelectorAll<HTMLButtonElement>('button[data-hero]').forEach((b) => {
       b.addEventListener('click', () => {
         const hero = HEROES.find((h) => h.id === b.dataset.hero);
@@ -537,7 +537,10 @@ async function boot(): Promise<void> {
     $('#ui').classList.add('ready');
   }, 350);
   // Banc d'essai des persos (`?test`) : page de travail par-dessus le hub.
-  if (new URLSearchParams(location.search).has('test')) setTimeout(mountBench, 380);
+  // Page de test : via ?test OU via l'adresse neuve /test.html (jamais en cache).
+  const benchUrl = new URLSearchParams(location.search).has('test')
+    || location.pathname.endsWith('/test.html');
+  if (benchUrl) setTimeout(mountBench, 380);
   // Cadeau de la mise à jour de l'autel (une seule fois par sauvegarde)
   if (store.pendingGift > 0) {
     const gems = store.pendingGift;

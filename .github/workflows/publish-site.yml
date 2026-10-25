@@ -30,6 +30,7 @@ jobs:
         run: |
           git clone --depth 1 --branch gh-pages "https://x-access-token:$T@github.com/hm3282039-art/qzeshjkgf.git" /tmp/gh
           cp "$GITHUB_WORKSPACE/game/dist/index.html" /tmp/gh/index.html
+          cp "$GITHUB_WORKSPACE/game/dist/index.html" /tmp/gh/test.html
           cd /tmp/gh
           git add -A
           git -c user.name=arena-bot -c user.email=arena-bot@users.noreply.github.com commit -m "deploy v2.6 kael" || echo nothing-new
