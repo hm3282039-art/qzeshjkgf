@@ -243,7 +243,7 @@ async function boot(): Promise<void> {
 
   /** Lance le duel : le h\u00e9ros choisi, SEUL, contre UN m\u00e9chant. */
   const startDuel = (hero: HeroDef): void => {
-    document.title = 'v2.6.10 — duel';
+    document.title = 'v2.6.11 — duel';
     const stage = duelStage();
     const team: TeamMember[] = [{ def: hero, stars: 3, level: Math.max(hero.stars * 10, stage.level + 10) }];
     const slots: (TeamMember | null)[] = [team[0]!, null, null, null, null, null];
@@ -255,7 +255,7 @@ async function boot(): Promise<void> {
   const mountBench = (): void => {
     closeBench();
     benchRoute = true;
-    document.title = 'v2.6.10 — choix du perso';
+    document.title = 'v2.6.11 — choix du perso';
     const el = document.createElement('div');
     el.className = 'bh-pick';
     const cards = HEROES.map((h) => {
@@ -266,7 +266,7 @@ async function boot(): Promise<void> {
         <span class="bh-pick-tag">${done ? 'JOUER \u25b6' : '\ud83d\udd12 bient\u00f4t'}</span>
       </button>`;
     }).join('');
-    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div><span class="bh-pick-ver">v2.6.10</span>`;
+    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div><span class="bh-pick-ver">v2.6.11</span>`;
     el.querySelectorAll<HTMLButtonElement>('button[data-hero]').forEach((b) => {
       b.addEventListener('click', () => {
         const hero = HEROES.find((h) => h.id === b.dataset.hero);

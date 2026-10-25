@@ -242,7 +242,7 @@ export class TurnController {
         case 'cast': {
           const u = b.view(e.uid);
           if (!u) break;
-          const sk = this.battle.byUid(e.uid)?.skills.find((x) => x.id === e.skill);
+          const sk = this.battle.byUid(e.uid)?.skills.find((x) => x.id === e.skill || x.name === e.skill);
           this.curHits = sk?.hits ?? 1;
           if (e.ultimate) {
             // L'aura de charge monte pendant le fondu, la ciné prend le relais.
@@ -263,7 +263,8 @@ export class TurnController {
           // Effets dédiés du héros au lancement (bouclier de Kael, aura, dôme…).
           const tu = this.battle.byUid(e.uid);
           const chid = tu?.hero?.id ?? tu?.def.id ?? '';
-          const cidx = Math.max(0, (tu?.skills ?? []).findIndex((sk) => sk.id === e.skill));
+          // Le moteur émet le NOM de la capacité dans l'événement : on accepte id OU nom.
+          const cidx = Math.max(0, (tu?.skills ?? []).findIndex((s2) => s2.id === e.skill || s2.name === e.skill));
           this.casterHid = chid;
           this.casterIdx = cidx;
           const cu = b.view(e.uid);

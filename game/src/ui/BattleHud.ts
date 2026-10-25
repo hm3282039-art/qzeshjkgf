@@ -452,7 +452,7 @@ export class BattleHud extends Emitter<HudEvents> {
           <button class="bh-btn" data-b="quit" title="Quitter le combat">${icon('back')}</button>
         </div>
       </div>
-      <span class="bh-ver">v2.6.10</span>
+      <span class="bh-ver">v2.6.11</span>
       <div class="bh-cr" data-cr title="Ordre des tours (jauge de vitesse)"></div>
       <div class="bh-banner"></div>
       <div class="bh-tip" data-thint>Une seule unité agit à la fois.</div>
@@ -564,23 +564,31 @@ export class BattleHud extends Emitter<HudEvents> {
    * barre de capacités, hors barre de tour) est retiré — mesuré à l'écran, donc
    * quelle que soit son origine dans le DOM.
    */
+  private sweepN = 0;
   private straySweep(): void {
     if (typeof window === 'undefined' || typeof getComputedStyle !== 'function') return;
+    this.sweepN++;
+    if (this.sweepN % 4 !== 1) return; // assez souvent, pas à chaque frame
     const vw = window.innerWidth || 2000;
     const vh = window.innerHeight || 1100;
     const kill: HTMLElement[] = [];
-    document.querySelectorAll('button, div, span, em').forEach((n) => {
+    document.querySelectorAll('*').forEach((n) => {
       const el = n as HTMLElement;
+      if (el.id === 'game' || el.id === 'ui' || el.id === 'loader') return;
+      if (el.closest('[data-tskills]') || el.closest('[data-cr]') || el.closest('.bh-cards')
+        || el.closest('.bh-ver') || el.closest('.sfx') || el.closest('.bh-tip') || el.closest('.bh-top')
+        || el.closest('.bh-pick') || el.closest('.bh-ctrl')) return;
       const r = el.getBoundingClientRect();
-      if (r.width < 34 || r.width > 150 || r.height < 34 || r.height > 150) return;
-      if (r.left > vw * 0.22 || r.top < vh * 0.6 || r.top > vh * 0.98) return;
-      if (el.closest('[data-tskills]') || el.closest('[data-cr]') || el.closest('.bh-cards') || el.closest('.bh-ver') || el.closest('.sfx')) return;
+      if (r.width < 30 || r.width > 150 || r.height < 30 || r.height > 150) return;
+      if (r.left > vw * 0.22 || r.top < vh * 0.58 || r.top > vh * 0.98) return;
       const rad = parseFloat(getComputedStyle(el).borderRadius) || 0;
       if (rad > 18) return;
+      if ((el.textContent || '').trim().length > 8) return;
       kill.push(el);
     });
     for (const el of kill) {
-      console.warn('[hud] parasite retiré :', el.className);
+      console.warn('[hud] parasite retiré :', el.tagName, el.className);
+      document.title = `parasite: ${el.tagName}.${String(el.className).slice(0, 40)}`;
       el.remove();
     }
   }
