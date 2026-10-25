@@ -38,8 +38,12 @@ const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Mat
  */
 const HERO_FX: Record<string, { cast: string[][]; impact: string[] }> = {
   kael: {
-    cast: [['kael_shield'], ['charge_aura'], ['shield_dome'], []],
-    impact: ['kael_leap', 'kael_leap', 'kael_leap', 'kael_slam'],
+    // [0] Lame de Braise : petites braises qui montent, puis fente.
+    // [1] Bouclier de Cendres : le bouclier se plante, dôme visible.
+    // [2] Cœur de Braise : PASSIF, aucune animation (jamais utilisé).
+    // [3] Jugement Ardent : cinématique complète, bond, puis onde de choc.
+    cast: [['buff_rise'], ['kael_shield', 'shield_dome'], [], ['kael_leap']],
+    impact: ['kael_leap', 'arc_flurry', 'kael_slam', 'kael_slam'],
   },
 };
 
@@ -86,6 +90,7 @@ export class TurnController {
     if (!u || u.side !== 'hero' || this.auto || !this.pending) return;
     const sk = u.skills[i];
     if (!sk) return;
+    if (sk.passive) { this.ui.hint(`${sk.name} est un passif : il est toujours actif, rien à lancer.`); return; }
     if (!u.ready(i)) { this.ui.hint(`${sk.name} recharge encore : ${Math.max(0, u.cd[i] ?? 0)} tour(s).`); return; }
     const legal = b.legalTargets(u, sk);
     if (legal.length === 0) { this.ui.hint(`Aucune cible valable pour ${sk.name}.`); return; }

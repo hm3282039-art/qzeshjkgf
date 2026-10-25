@@ -128,6 +128,17 @@ export function buildBattle(setup: BattleSetup): TurnBattle {
     battle.addHero(init);
   });
 
+  // Les PASSIFS s'appliquent une fois pour toutes au début du combat : le bouton
+  // est là pour la lecture, mais on ne l'utilise jamais.
+  battle.heroes.forEach((u) => {
+    for (const sk of u.skills) {
+      if (!sk.passive) continue;
+      for (const e of sk.effects) {
+        if (e.self) u.addStatus(e.id, e.turns, e.power, u.uid);
+      }
+    }
+  });
+
   const fp = foePlacement(stage.enemies);
   stage.enemies.slice(0, MAX_TEAM).forEach((e, i) => {
     const p = fp[i] ?? { row: 'front' as Row, slot: i % ROW_SLOTS };

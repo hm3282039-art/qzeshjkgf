@@ -340,7 +340,7 @@ async function boot(): Promise<void> {
           skills: u && actor
             ? u.skills.map((sk, i) => ({
               name: sk.name, icon: sk.icon, cd: Math.max(0, u.cd[i] ?? 0), ready: u.ready(i),
-              ult: !!sk.ultimate, heal: sk.kind === 'heal', line: sk.text,
+              ult: !!sk.ultimate, heal: sk.kind === 'heal', line: sk.text, passive: !!sk.passive,
               art: SKILL_ART[u.hero?.id ?? '']?.[i],
             }))
             : [null, null, null, null],

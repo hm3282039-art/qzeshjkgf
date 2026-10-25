@@ -90,6 +90,8 @@ export interface ThirdSkill extends SlotPatch {
   name: string;
   icon: IconName;
   text: string;
+  /** Vrai si cet emplacement est le PASSIF du héros (jamais utilisé, toujours actif). */
+  passive?: boolean;
 }
 
 /** L'ultime : le nom et l'icône viennent de la fiche, tout le reste est réécrit. */
@@ -114,9 +116,9 @@ export const TOUR_HEROES: Record<string, TourHero> = {
     base: { text: 'Un coup d\'épée ardente sur la première ligne : ça brûle un peu plus à chaque tour.' },
     skill: { text: 'Plante son bouclier : la cible est forcée de le frapper et il gagne un bouclier.' },
     third: {
-      name: 'Cendres ardentes', icon: 'flame', kind: 'support', target: 'self', mult: 0, cd: 4,
-      text: 'Se couvre de braises : bouclier et riposte sur chaque coup reçu.',
-      set: [{ id: 'shield', turns: 2, power: 0.18, self: true }, { id: 'counter', turns: 2, power: 0.6, self: true }],
+      name: 'C\u0153ur de Braise', icon: 'flame', kind: 'support', target: 'self', mult: 0, cd: 0, passive: true,
+      text: 'Passif \u2014 toujours actif : un bouclier de braises (18 % de ses PV max) et une riposte enflamm\u00e9e sur chaque coup re\u00e7u.',
+      set: [{ id: 'shield', turns: 999, power: 0.18, self: true }, { id: 'counter', turns: 999, power: 0.6, self: true }],
     },
     ult: {
       kind: 'phys', target: 'enemyFrontRow', mult: 2.6, cd: 6,
@@ -547,6 +549,16 @@ export function heroSkills(h: HeroDef): TurnSkill[] {
     out[2]!.name = spec.third.name;
     out[2]!.icon = spec.third.icon;
     applyPatch(out[2]!, spec.third);
+  }
+
+  // Emplacement 3 bis — le PASSIF : on ne l'utilise jamais, son effet est appliqué
+  // une fois pour toutes au début du combat (voir buildBattle).
+  if (spec?.third?.passive) {
+    out[2]!.passive = true;
+    out[2]!.mult = 0;
+    out[2]!.hits = 0;
+    out[2]!.cooldown = 0;
+    out[2]!.soul = 0;
   }
 
   // Emplacement 4 — l'ultime : nom et icône de la fiche, mécanique réécrite.

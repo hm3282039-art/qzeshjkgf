@@ -35,7 +35,7 @@ export interface TurnBarState {
   } | null;
   skills: Array<{
     name: string; icon: IconName; cd: number; ready: boolean;
-    ult: boolean; heal: boolean; line: string; art?: string;
+    ult: boolean; heal: boolean; line: string; art?: string; passive?: boolean;
   } | null>;
   soul: number;
   burn: boolean;
@@ -507,12 +507,14 @@ export class BattleHud extends Emitter<HudEvents> {
     const skills = this.el.querySelector('[data-tskills]');
     if (skills) {
       skills.innerHTML = st.skills.map((sk, i) => sk ? `
-        <button class="tb-skill${sk.ult ? ' ult' : ''}${sk.heal ? ' heal' : ''}" data-b="tskill" data-i="${i}"
-          title="${sk.line}" ${st.canAct && sk.ready ? '' : 'disabled'}>
+        <button class="tb-skill${sk.ult ? ' ult' : ''}${sk.heal ? ' heal' : ''}${sk.passive ? ' pass' : ''}" data-b="tskill" data-i="${i}"
+          title="${sk.line}" ${sk.passive ? 'disabled' : (st.canAct && sk.ready ? '' : 'disabled')}>
           ${sk.art ? `<img class="tb-art" src="${sk.art}" alt="" draggable="false"/>` : icon(sk.icon)}
           <span class="tb-nm">${sk.name}</span>
-          ${st.burn && sk.ready ? `<em class="tb-sb" title="Embrasement armé">${icon('flame')}</em>` : ''}
-          ${sk.ready ? `<em class="tb-key">${i + 1}</em>` : `<em class="tb-cd">${sk.cd}</em>`}
+          ${sk.passive
+            ? '<em class="tb-pass">Passif</em>'
+            : `${st.burn && sk.ready ? `<em class="tb-sb" title="Embrasement armé">${icon('flame')}</em>` : ''}
+               ${sk.ready ? `<em class="tb-key">${i + 1}</em>` : `<em class="tb-cd">${sk.cd}</em>`}`}
         </button>` : '<span class="tb-skill ghost"></span>').join('');
     }
 

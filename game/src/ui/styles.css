@@ -2512,9 +2512,9 @@ body.in-battle .npc-bubble { display: none; }
 .tb-skills { display: flex; align-items: flex-end; gap: 0.75rem; }
 .tb-skill {
   position: relative;
-  width: 4.3rem;
-  height: 4.3rem;
-  border-radius: 50%;
+  width: 5.6rem;
+  height: 5.6rem;
+  border-radius: 0.9rem;
   border: 0.14rem solid var(--gold);
   background: radial-gradient(circle at 35% 30%, #3b2b58, #150d24 70%);
   color: var(--gold-light);
@@ -2651,7 +2651,7 @@ body.in-battle .npc-bubble { display: none; }
   inset: 0.16rem;
   width: calc(100% - 0.32rem);
   height: calc(100% - 0.32rem);
-  border-radius: 50%;
+  border-radius: 0.75rem;
   object-fit: cover;
   background: #140d22;
   filter: saturate(1.1) contrast(1.05);
@@ -2700,3 +2700,16 @@ body.in-battle .npc-bubble { display: none; }
 .bh-pick-tag { font: 700 11px system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #ffd76a; }
 .bh-pick-card.bh-locked { filter: grayscale(1) brightness(.55); border-color: rgba(255, 255, 255, .15); cursor: not-allowed; }
 .bh-pick-card.bh-locked .bh-pick-tag { color: #9a8fb5; }
+
+/* ---------- Capacités carrées, plus grandes, en bas à droite ---------- */
+.tb-skill .ico { width: 2.6rem; height: 2.6rem; }
+.tb-skill.ult { border-width: 0.2rem; }
+.tb-skill.pass { border-color: #8fd0ff; color: #d9f0ff; background: radial-gradient(circle at 35% 30%, #1e3a5c, #0c1524 70%); }
+.tb-skill.pass:disabled { filter: saturate(0.9) brightness(0.85); cursor: help; opacity: 0.95; }
+.tb-skill.pass .tb-art { filter: saturate(0.8) brightness(0.85) sepia(0.15) hue-rotate(160deg); }
+.tb-pass {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 0.2rem;
+  font: 800 0.58rem system-ui, sans-serif; font-style: normal; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #9fd8ff; background: #0a1420d9;
+  border: 1px solid #2e5c80; border-radius: 0.4rem; padding: 0.05rem 0.4rem;
+}

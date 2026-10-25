@@ -116,6 +116,8 @@ export interface TurnSkill {
   critBonus?: number;
   /** Vrai pour l'ultime (une seule par héros, recharge longue). */
   ultimate?: boolean;
+  /** Passif : affiché dans la barre mais jamais utilisé — son effet est toujours actif. */
+  passive?: boolean;
   /** Âmes gagnées par l'équipe en utilisant cette capacité. */
   soul: number;
 }
