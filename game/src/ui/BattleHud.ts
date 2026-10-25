@@ -504,6 +504,8 @@ export class BattleHud extends Emitter<HudEvents> {
         </div>` : `<div class="tb-wait">…</div>`;
     }
 
+    // Sécurité : aucun bouton de capacité ne doit traîner hors de la barre.
+    this.el.querySelectorAll('.tb-skill').forEach((n) => { if (!n.closest('[data-tskills]')) n.remove(); });
     const skills = this.el.querySelector('[data-tskills]');
     if (skills) {
       skills.innerHTML = st.skills.map((sk, i) => sk ? `
@@ -513,7 +515,8 @@ export class BattleHud extends Emitter<HudEvents> {
           <span class="tb-nm">${sk.name}</span>
           ${sk.passive
             ? '<em class="tb-pass">Passif</em>'
-            : `${st.burn && sk.ready ? `<em class="tb-sb" title="Embrasement armé">${icon('flame')}</em>` : ''}
+            : `${sk.ult ? '<em class="tb-ulttag">Ulti</em>' : ''}
+               ${st.burn && sk.ready ? `<em class="tb-sb" title="Embrasement armé">${icon('flame')}</em>` : ''}
                ${sk.ready ? `<em class="tb-key">${i + 1}</em>` : `<em class="tb-cd">${sk.cd}</em>`}`}
         </button>` : '<span class="tb-skill ghost"></span>').join('');
     }

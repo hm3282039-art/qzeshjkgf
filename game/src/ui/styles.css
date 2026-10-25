@@ -2713,3 +2713,27 @@ body.in-battle .npc-bubble { display: none; }
   text-transform: uppercase; color: #9fd8ff; background: #0a1420d9;
   border: 1px solid #2e5c80; border-radius: 0.4rem; padding: 0.05rem 0.4rem;
 }
+
+/* ---------- ULTI : plus gros, juste à côté des autres capacités ---------- */
+.tb-skills { flex: 0 0 auto; flex-wrap: nowrap; }
+.tb-skill.ult {
+  width: 7.2rem;
+  height: 7.2rem;
+  border-width: 0.24rem;
+  border-color: #ff8a3d;
+  box-shadow: 0 0 0 0.16rem rgba(30, 10, 6, 0.95), 0 0 0 0.3rem #ff8a3d, 0 0.5rem 1.4rem #000c, 0 0 1.8rem rgba(255, 138, 61, 0.75), inset 0 0 1.2rem #0009;
+  animation: tb-ult-pulse 1.6s ease-in-out infinite;
+}
+.tb-skill.ult .tb-art { border-radius: 0.9rem; }
+.tb-skill.ult:disabled { animation: none; }
+.tb-skill.ult .tb-nm { font-size: 0.78rem; color: #ffe7c2; }
+.tb-ulttag {
+  position: absolute; left: 50%; transform: translateX(-50%); top: 0.22rem;
+  font: 900 0.6rem system-ui, sans-serif; font-style: normal; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #2a0d05; background: linear-gradient(180deg, #ffd08a, #ff8a3d);
+  border-radius: 0.4rem; padding: 0.06rem 0.45rem; box-shadow: 0 0 0.6rem rgba(255, 138, 61, 0.8);
+}
+@keyframes tb-ult-pulse {
+  0%, 100% { box-shadow: 0 0 0 0.16rem rgba(30, 10, 6, 0.95), 0 0 0 0.3rem #ff8a3d, 0 0.5rem 1.4rem #000c, 0 0 1.4rem rgba(255, 138, 61, 0.55), inset 0 0 1.2rem #0009; }
+  50% { box-shadow: 0 0 0 0.16rem rgba(30, 10, 6, 0.95), 0 0 0 0.3rem #ffb066, 0 0.5rem 1.4rem #000c, 0 0 2.4rem rgba(255, 138, 61, 0.95), inset 0 0 1.2rem #0009; }
+}

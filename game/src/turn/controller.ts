@@ -42,7 +42,7 @@ const HERO_FX: Record<string, { cast: string[][]; impact: string[] }> = {
     // [1] Bouclier de Cendres : le bouclier se plante, dôme visible.
     // [2] Cœur de Braise : PASSIF, aucune animation (jamais utilisé).
     // [3] Jugement Ardent : cinématique complète, bond, puis onde de choc.
-    cast: [['buff_rise'], ['kael_shield', 'shield_dome'], [], ['kael_leap']],
+    cast: [[], ['kael_shield', 'shield_dome'], [], ['kael_leap']],
     impact: ['kael_leap', 'arc_flurry', 'kael_slam', 'kael_slam'],
   },
 };
@@ -232,7 +232,7 @@ export class TurnController {
             b.emit('cast', { u, ability: 'skill' });
             if (sk && sk.kind === 'support') {
               b.emit('fx', { type: sk.effects.some((f) => f.id === 'shield') ? 'shield_dome' : 'buff_rise', u });
-              await wait(140 / this.speed);
+              await wait(220 / this.speed);
             } else {
               await wait(240 / this.speed);
             }
@@ -246,7 +246,7 @@ export class TurnController {
           const cu = b.view(e.uid);
           for (const f of HERO_FX[chid]?.cast?.[cidx] ?? []) {
             b.emit('fx', { type: f as FxType, u: cu ?? undefined, x: cu?.x, y: cu?.y });
-            await wait(110 / this.speed);
+            await wait(170 / this.speed);
           }
           break;
         }
@@ -271,6 +271,13 @@ export class TurnController {
           if (tgt) {
             const dedi = this.curHits <= 1 ? HERO_FX[this.casterHid]?.impact?.[this.casterIdx] : undefined;
             if (dedi) b.emit('fx', { type: dedi as FxType, x: tgt.x, y: tgt.y });
+            // L'ULTI insiste : onde de choc supplémentaire + retombées de braises.
+            if (dedi === 'kael_slam') {
+              await wait(90 / this.speed);
+              b.emit('fx', { type: 'charge_aura', u: tgt, x: tgt.x, y: tgt.y });
+              await wait(110 / this.speed);
+              b.emit('fx', { type: 'arc_flurry', u: src ?? undefined, target: tgt });
+            }
             b.emit('fx', {
               type: e.kind === 'magic' ? 'magic_nova' : this.curHits >= 2 ? 'arc_flurry' : 'arc_slash',
               u: src ?? undefined, target: tgt,
