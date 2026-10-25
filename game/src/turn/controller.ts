@@ -14,6 +14,7 @@ import type { Unit } from '../battle/Sim';
 import type { TurnBridge } from './bridge';
 import type { TurnBattle, TUnit } from './engine';
 import { type FxType } from '../battle/Sim';
+import { strikeDelay } from '../battle/rigs';
 import { SOUL_BURN_COST, type BattleEvent } from './types';
 
 export interface TurnChoice { skill: number; target: number | null; burn: boolean; }
@@ -33,7 +34,16 @@ export interface TurnUi {
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
 /** Point de retour d'un perso qui s'est déplacé pendant sa capacité. */
-type HomeBack = { v: { x: number; y: number }; hx: number; hy: number };
+type HomeBack = { v: Unit; hx: number; hy: number };
+
+type Ease = 'smooth' | 'dash' | 'leap';
+const EASE: Record<Ease, (k: number) => number> = {
+  smooth: (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  // Démarrage sec, freinage à l'arrivée : une ruée.
+  dash: (k) => 1 - Math.pow(1 - k, 4),
+  // Bond : vitesse horizontale presque constante, l'arc fait le reste.
+  leap: (k) => 0.5 - Math.cos(k * Math.PI) / 2,
+};
 
 /**
  * Chorégraphies DÉDIÉES par héros et par capacité (les effets du combat temps
@@ -55,16 +65,42 @@ const HERO_FX: Record<string, { cast: string[][]; impact: string[] }> = {
 export class TurnController {
   private pendingHome: HomeBack | null = null;
 
-  /** Fait glisser une unité vue par la scène (elle marche/court vraiment). */
-  private async glide(v: { x: number; y: number }, tx: number, ty: number, ms: number, arc = 0): Promise<void> {
+  /**
+   * Déplace une unité de la scène image par image (requestAnimationFrame), avec
+   * courbe d'accélération. Un `arc` > 0 passe par le `leap` de l'unité : la vue
+   * prend alors sa pose de saut et le réalisateur peut suivre le bond.
+   */
+  private glide(v: Unit, tx: number, ty: number, ms: number, arc = 0, ease: Ease = 'smooth'): Promise<void> {
     const x0 = v.x, y0 = v.y;
-    const steps = 7;
-    for (let i = 1; i <= steps; i++) {
-      v.x = x0 + (tx - x0) * (i / steps);
-      v.y = y0 + (ty - y0) * (i / steps) - arc * Math.sin((Math.PI * i) / steps);
-      await wait(ms / steps / this.speed);
-    }
-    v.y = ty;
+    const dur = Math.max(16, ms / this.speed);
+    const here = this.epoch;
+    v.leap = arc > 0 ? { fx: x0, fy: y0, tx, ty, t: 0, dur: dur / 1000, height: arc } : null;
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      const step = (now: number): void => {
+        if (here !== this.epoch || this.dead) { v.leap = null; resolve(); return; }
+        const k = Math.min(1, (now - t0) / dur);
+        const e = EASE[ease](k);
+        v.x = x0 + (tx - x0) * e;
+        v.y = y0 + (ty - y0) * e;
+        if (v.leap) v.leap.t = k * v.leap.dur;
+        if (k < 1) { requestAnimationFrame(step); return; }
+        v.x = tx; v.y = ty; v.leap = null;
+        resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  /** Ramène à sa place celui qui s'est déplacé pendant son action. */
+  private async returnHome(delay: number): Promise<void> {
+    const ph = this.pendingHome;
+    if (!ph) return;
+    this.pendingHome = null;
+    await wait(delay / this.speed);
+    if (this.dead) return;
+    const dist = Math.abs(ph.v.x - ph.hx);
+    await this.glide(ph.v, ph.hx, ph.hy, Math.min(460, 220 + dist * 0.45), dist > 260 ? 70 : 30, 'smooth');
   }
 
   auto = false;
@@ -232,11 +268,7 @@ export class TurnController {
       if (this.dead || here !== this.epoch) return;
       switch (e.type) {
         case 'turn':
-          if (this.pendingHome) {
-            const ph = this.pendingHome;
-            this.pendingHome = null;
-            await this.glide(ph.v, ph.hx, ph.hy, 220);
-          }
+          await this.returnHome(0);
           this.bridge.syncAll();
           this.ui.state();
           break;
@@ -275,28 +307,24 @@ export class TurnController {
           }
           // Signature DOM garantie visible, différente pour chaque capacité,
           // avec le NOM de la capacité en gros au milieu de l'écran.
+          // L'ultime a déjà son cut-in plein écran : pas de bandeau DOM par-dessus.
           if (chid === 'kael') {
             if (cidx === 0) this.ui.skillFx('slash', sk?.name ?? 'Lame de Braise');
             else if (cidx === 1) this.ui.skillFx('shield', sk?.name ?? 'Bouclier de Cendres');
-            else if (cidx === 3) this.ui.skillFx('ult', sk?.name ?? 'Jugement Ardent');
           }
-          // Le perso BOUGE vraiment, différemment selon la capacité :
-          // 1 = il court sur l'ennemi et revient · 2 = pas en arrière, il plante
-          // son bouclier · 3 = passif · 4 = il saute dans le tas et y reste.
+          // Lame de Braise : la ruée au contact se fait au moment du coup (voir `damage`),
+          // pour que la frappe parte de près au lieu d'être lancée à distance.
           if (chid === 'kael' && cu) {
             const hx = cu.x, hy = cu.y;
             const foe = this.battle.foes.find((f) => f.alive);
             const fv = foe ? b.view(foe.uid) : undefined;
-            if (cidx === 0 && fv) {
-              // Course rapide au contact, petit bond, puis retour.
-              await this.glide(cu, fv.x - 170, fv.y, 190, 40);
-              await this.glide(cu, hx, hy, 190, 25);
-            } else if (cidx === 1) {
-              // Saut sur place : il plante son bouclier au sol (pas de déplacement).
-              await this.glide(cu, hx, hy, 300, 130);
+            if (cidx === 1) {
+              // Bond sur place : il plante son bouclier en retombant.
+              await this.glide(cu, hx, hy, 380, 110, 'leap');
             } else if (cidx === 3 && fv) {
-              // GRAND saut parabolique au cœur des ennemis, il y reste.
-              await this.glide(cu, fv.x - 120, fv.y, 240, 320);
+              // Pendant la phase B du réalisateur : le grand bond est filmé par la caméra du script.
+              await wait(120 / this.speed);
+              await this.glide(cu, fv.x - fv.facing * 130, fv.y, 560, 300, 'leap');
               this.pendingHome = { v: cu, hx, hy };
             }
           }
@@ -315,8 +343,19 @@ export class TurnController {
               });
               await wait(230 / this.speed);
             } else {
+              // Corps à corps : on va AU CONTACT avant de frapper, puis on rentre en fin d'action.
+              const gap = Math.max(150, (src.def.height + tgt.def.height) * 0.26);
+              const dir = Math.sign(tgt.x - src.x) || 1;
+              if (Math.abs(tgt.x - src.x) > gap + 90) {
+                if (!this.pendingHome) this.pendingHome = { v: src, hx: src.x, hy: src.y };
+                const dist = Math.abs(tgt.x - src.x) - gap;
+                await this.glide(src, tgt.x - dir * gap, tgt.y, Math.min(340, 150 + dist * 0.35), 18, 'dash');
+                if (this.dead || here !== this.epoch) return;
+              }
               b.emit('attack', { u: src, target: tgt });
-              await wait(150 / this.speed);
+              // Les dégâts tombent sur l'image de frappe de l'animation, pas avant.
+              const strike = strikeDelay(src.def.texture, false, src.isSummon) * 1000;
+              await wait(Math.max(90, strike) / this.speed);
             }
             if (this.dead || here !== this.epoch) return;
           }
@@ -388,6 +427,12 @@ export class TurnController {
           break;
       }
     }
-    if (here === this.epoch && !this.dead) { b.syncAll(); this.ui.state(); }
+    if (here === this.epoch && !this.dead) {
+      // On reste un instant sur la pose d'impact, puis retour en place.
+      await this.returnHome(this.casterIdx === 3 ? 650 : 240);
+      if (here !== this.epoch || this.dead) return;
+      b.syncAll();
+      this.ui.state();
+    }
   }
 }

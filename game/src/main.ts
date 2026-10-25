@@ -371,9 +371,11 @@ async function boot(): Promise<void> {
         pick: (uids) => battle.setPickable(uids, uids ? (uid) => ctl.tapTarget(uid) : null),
         skillFx: (k, label) => hud.skillFx(k, label),
         waitCine: async () => {
-          for (let g = 0; g < 500; g++) {
-            if (!battle.director.busy && !battle.director.frozen) return;
-            await sleep(100);
+          // On rend la main dès que l'élan (coupes + cut-in) est fini : l'exécution
+          // (bond, impact) se joue PENDANT la phase B pour que la caméra du script la filme.
+          for (let g = 0; g < 400; g++) {
+            if (!battle.director.frozen) return;
+            await sleep(16);
           }
         },
       });

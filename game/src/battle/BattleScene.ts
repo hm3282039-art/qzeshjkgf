@@ -1260,6 +1260,8 @@ export class BattleScene extends Emitter<BattleEvents> {
       const v = this.views.get(u.uid);
       if (ability === 'skill') v?.cast(u.def.color);
       if (ability === 'skill' && u.side === 'hero') this.juiceCast(u);
+      // Tour par tour : personne ne clique la carte, c'est le lancement qui ouvre la cinématique.
+      if (ability === 'ultimate' && !(this.sim instanceof BattleSim)) this.director.request(u);
       this.director.onCast(u, ability);
     });
 
