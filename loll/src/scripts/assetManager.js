@@ -1,0 +1,213 @@
+/**
+ * AssetManager - Handles loading and caching of game assets (sprites, backgrounds, UI images)
+ * Provides fallback support when assets are missing
+ */
+export class AssetManager {
+  constructor() {
+    this.assets = {};
+    this.loadedCount = 0;
+    this.totalCount = 0;
+    this.loadingProgress = 0;
+
+    // Asset manifest - maps category -> name -> file path
+    // Use relative paths so they work with Vite's base configuration
+    const basePath = import.meta.env.BASE_URL || '/';
+    this.manifest = {
+      backgrounds: {
+        forest: `${basePath}backgrounds/forest.svg`,
+        dungeon: `${basePath}backgrounds/dungeon.svg`,
+        volcano: `${basePath}backgrounds/volcano.svg`,
+        castle: `${basePath}backgrounds/castle.svg`
+      },
+      heroes: {
+        bartimaeus: `${basePath}heroes/bartimaeus.svg`
+      },
+      enemies: {
+        goblin: `${basePath}enemies/goblin.svg`,
+        orc: `${basePath}enemies/orc.svg`,
+        skeleton: `${basePath}enemies/skeleton.svg`,
+        demon: `${basePath}enemies/demon.svg`,
+        dragon: `${basePath}enemies/dragon.svg`
+      },
+      ui: {
+        // Skill icons
+        skill_fireball: `${basePath}ui/fireball-icon.svg`,
+        skill_cleave: `${basePath}ui/cleave-icon.svg`,
+        skill_heal: `${basePath}ui/heal-icon.svg`,
+
+        // UI elements
+        button_upgrade: `${basePath}ui/button-upgrade.svg`,
+        panel_frame: `${basePath}ui/panel-frame.svg`,
+        healthbar_bg: `${basePath}ui/healthbar-background.svg`,
+        healthbar_fill_green: `${basePath}ui/healthbar-fill-green.svg`,
+        healthbar_fill_red: `${basePath}ui/healthbar-fill-red.svg`,
+        gold_coin: `${basePath}ui/gold-coin.svg`,
+        gem_icon: `${basePath}ui/gem-icon.svg`
+      }
+    };
+  }
+
+  /**
+   * Load all assets defined in manifest
+   * @returns {Promise} Resolves when all assets are loaded (or failed)
+   */
+  loadAll() {
+    return new Promise((resolve, reject) => {
+      // Count total assets
+      this.totalCount = 0;
+      Object.keys(this.manifest).forEach(category => {
+        this.totalCount += Object.keys(this.manifest[category]).length;
+      });
+
+      if (this.totalCount === 0) {
+        console.log('No assets to load');
+        resolve();
+        return;
+      }
+
+      console.log(`Loading ${this.totalCount} assets...`);
+
+      const loadPromises = [];
+
+      // Load each category
+      Object.keys(this.manifest).forEach(category => {
+        if (!this.assets[category]) {
+          this.assets[category] = {};
+        }
+
+        Object.keys(this.manifest[category]).forEach(name => {
+          const path = this.manifest[category][name];
+          const promise = this.loadAsset(category, name, path);
+          loadPromises.push(promise);
+        });
+      });
+
+      // Wait for all assets (some may fail, that's ok)
+      Promise.allSettled(loadPromises)
+        .then(results => {
+          const successful = results.filter(r => r.status === 'fulfilled').length;
+          const failed = results.filter(r => r.status === 'rejected').length;
+
+          console.log(`Asset loading complete: ${successful} loaded, ${failed} failed`);
+          this.loadingProgress = 1.0;
+          resolve();
+        })
+        .catch(err => {
+          console.error('Asset loading error:', err);
+          reject(err);
+        });
+    });
+  }
+
+  /**
+   * Load a single asset
+   * @param {string} category - Asset category
+   * @param {string} name - Asset name
+   * @param {string} path - Asset file path
+   * @returns {Promise} Resolves when asset loads or rejects on error
+   */
+  loadAsset(category, name, path) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+
+      img.onload = () => {
+        this.assets[category][name] = img;
+        this.loadedCount++;
+        this.loadingProgress = this.loadedCount / this.totalCount;
+
+        // Update loading screen if it exists
+        this.updateLoadingScreen();
+
+        console.log(`✓ Loaded: ${path} (${this.loadedCount}/${this.totalCount})`);
+        resolve(img);
+      };
+
+      img.onerror = () => {
+        console.warn(`✗ Failed to load: ${path}`);
+        this.loadedCount++;
+        this.loadingProgress = this.loadedCount / this.totalCount;
+
+        // Update loading screen even on failure
+        this.updateLoadingScreen();
+
+        // Don't reject - we want to continue loading other assets
+        // Fallback rendering will handle missing assets
+        resolve(null);
+      };
+
+      img.src = path;
+    });
+  }
+
+  /**
+   * Get an asset by category and name
+   * @param {string} category - Asset category
+   * @param {string} name - Asset name
+   * @returns {Image|null} The loaded image or null if not found
+   */
+  get(category, name) {
+    if (!this.assets[category]) {
+      return null;
+    }
+    return this.assets[category][name] || null;
+  }
+
+  /**
+   * Check if all assets are loaded
+   * @returns {boolean} True if all assets finished loading (success or failure)
+   */
+  isLoaded() {
+    return this.loadingProgress >= 1.0;
+  }
+
+  /**
+   * Get loading progress as percentage
+   * @returns {number} Progress from 0 to 1
+   */
+  getProgress() {
+    return this.loadingProgress;
+  }
+
+  /**
+   * Update loading screen UI if it exists
+   */
+  updateLoadingScreen() {
+    const progressBar = document.getElementById('loading-progress');
+    const loadingText = document.getElementById('loading-text');
+
+    if (progressBar) {
+      const percent = Math.floor(this.loadingProgress * 100);
+      progressBar.style.width = `${percent}%`;
+    }
+
+    if (loadingText) {
+      const percent = Math.floor(this.loadingProgress * 100);
+      loadingText.textContent = `Loading assets... ${percent}%`;
+    }
+  }
+
+  /**
+   * Get stats about loaded assets
+   * @returns {object} Object with loaded/total/failed counts
+   */
+  getStats() {
+    let totalAssets = 0;
+    let loadedAssets = 0;
+
+    Object.keys(this.manifest).forEach(category => {
+      Object.keys(this.manifest[category]).forEach(name => {
+        totalAssets++;
+        if (this.assets[category] && this.assets[category][name]) {
+          loadedAssets++;
+        }
+      });
+    });
+
+    return {
+      total: totalAssets,
+      loaded: loadedAssets,
+      failed: totalAssets - loadedAssets,
+      progress: this.loadingProgress
+    };
+  }
+}

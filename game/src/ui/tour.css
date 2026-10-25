@@ -1,0 +1,622 @@
+/**
+ * COMBAT TOUR PAR TOUR — feuille de style.
+ *
+ * Même langue visuelle que le reste du jeu (« obsidienne & or brûlé »), mais les
+ * variables sont redéclarées ici : ce module doit s'afficher correctement même s'il
+ * est chargé seul (il est monté sur `?tour`, sans WebGL ni reste de l'interface).
+ *
+ * Trois zones : la barre de tour en haut, le champ de bataille au centre (3 colonnes
+ * par équipe = 2 devant / 2 milieu / 2 derrière), la barre de capacités en bas.
+ */
+
+.tour {
+  --t-gold: #e3c077;
+  --t-gold-l: #fff0c2;
+  --t-gold-d: #6a5024;
+  --t-ember: #ff8a3d;
+  --t-crimson: #c2183c;
+  --t-violet: #8a4dff;
+  --t-ink: #070510;
+  --t-panel: rgba(18, 13, 30, 0.94);
+  --t-panel-2: rgba(33, 24, 51, 0.96);
+  --t-text: #f4eeff;
+  --t-muted: #a89ac4;
+  --t-line: rgba(227, 192, 119, 0.3);
+  --t-line-soft: rgba(227, 192, 119, 0.14);
+  --t-ok: #6fd08c;
+  --t-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+  --t-lift: 0 1rem 2.6rem rgba(0, 0, 0, 0.62);
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 0.5rem;
+  padding: 0.7rem clamp(0.5rem, 1.6vw, 1.4rem) 0.8rem;
+  overflow: hidden;
+  color: var(--t-text);
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, rgba(138, 77, 255, 0.22), transparent 70%),
+    radial-gradient(900px 600px at 12% 110%, rgba(194, 24, 60, 0.18), transparent 70%),
+    linear-gradient(180deg, #120c1e 0%, var(--t-ink) 60%, #050309 100%);
+}
+
+.tour .ico { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; }
+.tour button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ----------------------------- barre du haut ---------------------------- */
+
+.tour-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--t-line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--t-panel-2), var(--t-panel));
+  box-shadow: var(--t-bevel);
+}
+
+.tour-title { display: flex; flex-direction: column; line-height: 1.15; margin-right: auto; }
+.tour-title b {
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 1.5vw, 1.25rem);
+  letter-spacing: 0.06em;
+  color: var(--t-gold-l);
+}
+.tour-title small { color: var(--t-muted); font-size: 0.74rem; }
+
+.tour-pick { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--t-muted); }
+.tour-pick select {
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--t-line);
+  border-radius: 8px;
+  background: #150f22;
+  color: var(--t-text);
+  font: inherit;
+}
+
+.tbtn {
+  padding: 0.34rem 0.7rem;
+  border: 1px solid var(--t-line);
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(227, 192, 119, 0.16), rgba(227, 192, 119, 0.05));
+  color: var(--t-gold-l);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  box-shadow: var(--t-bevel);
+  transition: transform 0.12s, filter 0.15s;
+}
+.tbtn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.tbtn.ghost { background: rgba(255, 255, 255, 0.04); color: var(--t-muted); }
+.tbtn.go {
+  border-color: rgba(255, 138, 61, 0.5);
+  background: linear-gradient(180deg, rgba(255, 138, 61, 0.35), rgba(194, 24, 60, 0.28));
+  color: #fff3e2;
+  font-weight: 600;
+}
+
+/* --------------------------- barre d'ordre de tour ---------------------- */
+
+.tour-order {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  min-height: 2.9rem;
+  border: 1px solid var(--t-line-soft);
+  border-radius: 11px;
+  background: rgba(10, 7, 18, 0.72);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.tour-order > span:first-child {
+  flex: none;
+  color: var(--t-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ochip {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.5rem 0.18rem 0.2rem;
+  border: 1px solid var(--t-line-soft);
+  border-radius: 999px;
+  background: #171026;
+  font-size: 0.72rem;
+}
+.ochip img { width: 1.5rem; height: 1.5rem; border-radius: 50%; object-fit: cover; background: #2a1f3d; }
+.ochip.foe { border-color: rgba(194, 24, 60, 0.4); }
+.ochip.now { border-color: var(--t-gold); box-shadow: 0 0 0 2px rgba(227, 192, 119, 0.25); }
+.ochip b { font-weight: 600; }
+.ochip i { font-style: normal; color: var(--t-muted); font-size: 0.66rem; }
+
+/* ------------------------------- le champ ------------------------------- */
+
+.tour-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.62fr) minmax(0, 1fr);
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+.tour-side {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-content: start;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Les deux équipes sont dessinées dans le même sens (arrière → avant) : comme les
+   ennemis sont à droite du champ, leur colonne « Devant » se retrouve au milieu,
+   face à la ligne avant des héros. C'est ce qui rend la règle des lignes lisible. */
+
+.tour-col { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+.tour-col > h4 {
+  margin: 0;
+  padding: 0.12rem 0.35rem;
+  border-bottom: 1px solid var(--t-line-soft);
+  color: var(--t-muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.tour-col > h4 em { display: block; font-style: normal; font-size: 0.58rem; letter-spacing: 0; opacity: 0.7; }
+
+/* ------------------------------ carte d'unité --------------------------- */
+
+.tcard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.1rem 1fr;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  border: 1px solid var(--t-line-soft);
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(38, 27, 58, 0.92), rgba(16, 11, 26, 0.92));
+  box-shadow: var(--t-bevel);
+  transition: transform 0.16s, box-shadow 0.2s, border-color 0.2s, opacity 0.3s;
+}
+.tcard.foe { background: linear-gradient(180deg, rgba(58, 22, 34, 0.9), rgba(22, 10, 16, 0.92)); }
+
+.tcard .tavatar { position: relative; width: 3.1rem; height: 3.1rem; }
+.tcard .tavatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  object-fit: cover;
+  border: 1px solid var(--t-line-soft);
+  background: #241a36;
+}
+.tcard .tlvl {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #0d0916;
+  border: 1px solid var(--t-line);
+  color: var(--t-gold-l);
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.tinfo { min-width: 0; display: flex; flex-direction: column; gap: 0.22rem; }
+.tname {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tname small { color: var(--t-muted); font-weight: 400; font-size: 0.64rem; }
+
+.tbar { position: relative; height: 0.44rem; border-radius: 999px; background: #1b1329; overflow: hidden; }
+.tbar i { position: absolute; inset: 0 auto 0 0; display: block; border-radius: 999px; transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.tbar.hp i { background: linear-gradient(90deg, #4fd07a, #b6f27a); }
+.tbar.hp.low i { background: linear-gradient(90deg, #d8402f, #ff8a3d); }
+.tbar.hp b {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.54rem;
+  font-weight: 700;
+  color: #0b0814;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.tbar.hp .tshield {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(150, 210, 255, 0.75);
+  border-left: 1px solid rgba(255, 255, 255, 0.6);
+}
+.tbar.gauge { height: 0.26rem; background: #150f22; }
+.tbar.gauge i { background: linear-gradient(90deg, #8a4dff, #e3c077); }
+
+.tstatus { display: flex; flex-wrap: wrap; gap: 0.18rem; min-height: 0.95rem; }
+.tst {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.14rem;
+  padding: 0.05rem 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.58rem;
+  line-height: 1.5;
+}
+.tst.bad { border-color: rgba(255, 110, 110, 0.5); color: #ffc9c9; }
+.tst.good { border-color: rgba(120, 230, 160, 0.5); color: #c9ffd9; }
+.tst b { font-weight: 700; }
+
+/* états de carte */
+.tcard.acting {
+  border-color: var(--t-gold);
+  box-shadow: 0 0 0 2px rgba(227, 192, 119, 0.3), 0 0 26px rgba(227, 192, 119, 0.28);
+  transform: translateY(-2px);
+}
+.tcard.picking { border-color: var(--t-ok); box-shadow: 0 0 0 2px rgba(111, 208, 140, 0.35); cursor: crosshair; }
+.tcard.picking:hover { transform: scale(1.03); box-shadow: 0 0 0 3px rgba(111, 208, 140, 0.6); }
+.tcard.dead { opacity: 0.34; filter: grayscale(0.9); }
+.tcard.hit { animation: tHit 0.34s ease-out; }
+.tcard.casting { animation: tCast 0.4s ease-out; }
+.tcard.healed { animation: tHeal 0.5s ease-out; }
+.tcard.drag { outline: 2px dashed var(--t-gold); outline-offset: 2px; }
+.tcard.empty {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-content: center;
+  gap: 0.25rem;
+  min-height: 4.4rem;
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--t-muted);
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.7rem;
+}
+.tcard.empty:hover { border-color: var(--t-gold); color: var(--t-gold-l); background: rgba(227, 192, 119, 0.07); }
+.tcard.empty .ico { width: 1.3rem; height: 1.3rem; }
+
+@keyframes tHit {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); filter: brightness(1.7) saturate(0.4); }
+  60% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+@keyframes tCast {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 240, 194, 0.5); }
+  100% { transform: scale(1); }
+}
+@keyframes tHeal {
+  0% { box-shadow: 0 0 0 rgba(120, 230, 160, 0); }
+  40% { box-shadow: 0 0 26px rgba(120, 230, 160, 0.65); }
+  100% { box-shadow: 0 0 0 rgba(120, 230, 160, 0); }
+}
+
+/* chiffres flottants */
+.tfloat {
+  position: absolute;
+  left: 50%;
+  top: 0.2rem;
+  z-index: 4;
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  animation: tFloat 1s ease-out forwards;
+  white-space: nowrap;
+}
+.tfloat.dmg { color: #ffd9d0; }
+.tfloat.crit { color: #ffe27a; font-size: 1.05rem; }
+.tfloat.heal { color: #c9ffd9; }
+.tfloat.block { color: #b9c9ff; font-size: 0.72rem; }
+.tfloat.dot { color: #e0b3ff; font-size: 0.74rem; }
+@keyframes tFloat {
+  0% { transform: translate(-50%, 6px) scale(0.85); opacity: 0; }
+  20% { transform: translate(-50%, -6px) scale(1.08); opacity: 1; }
+  100% { transform: translate(-50%, -30px) scale(1); opacity: 0; }
+}
+
+/* ------------------------------ colonne centre -------------------------- */
+
+.tour-center {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.tsoul {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--t-line-soft);
+  border-radius: 10px;
+  background: rgba(10, 7, 18, 0.7);
+  font-size: 0.7rem;
+}
+.tsoul .gems { display: flex; gap: 0.15rem; }
+.tsoul .gem {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.07);
+}
+.tsoul .gem.on { background: radial-gradient(circle at 30% 30%, #fff0c2, #e3c077 60%, #6a5024); box-shadow: 0 0 8px rgba(227, 192, 119, 0.7); }
+.tsoul small { color: var(--t-muted); margin-left: auto; }
+
+.tour-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--t-line-soft);
+  border-radius: 10px;
+  background: rgba(8, 5, 14, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  scrollbar-width: thin;
+}
+.tour-log p { margin: 0 0 0.18rem; color: var(--t-muted); }
+.tour-log p b { color: var(--t-text); font-weight: 600; }
+.tour-log p.ult { color: var(--t-gold-l); font-weight: 600; }
+.tour-log p.dead { color: #ff9d9d; }
+.tour-log p.heal { color: #a9e8bd; }
+.tour-log p.turn { color: var(--t-violet); border-top: 1px solid var(--t-line-soft); padding-top: 0.2rem; margin-top: 0.3rem; }
+
+.tour-hint {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--t-line-soft);
+  border-left: 3px solid var(--t-gold);
+  border-radius: 8px;
+  background: rgba(227, 192, 119, 0.07);
+  color: var(--t-gold-l);
+  font-size: 0.72rem;
+  min-height: 2.1rem;
+}
+
+/* --------------------------- barre de capacités ------------------------- */
+
+.tour-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) repeat(4, minmax(0, 1.35fr)) minmax(0, 0.9fr);
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border: 1px solid var(--t-line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--t-panel-2), var(--t-panel));
+  box-shadow: var(--t-bevel);
+}
+
+.twho { display: flex; flex-direction: column; justify-content: center; gap: 0.15rem; min-width: 0; padding-left: 0.2rem; }
+.twho b { font-family: 'Cinzel', serif; color: var(--t-gold-l); font-size: 0.92rem; }
+.twho span { color: var(--t-muted); font-size: 0.68rem; }
+.twho .tbar { margin-top: 0.15rem; }
+
+.tskill {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 0.05rem 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--t-line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(227, 192, 119, 0.14), rgba(20, 14, 32, 0.9));
+  text-align: left;
+  transition: transform 0.12s, filter 0.15s, box-shadow 0.2s;
+}
+.tskill .ico { width: 1.35rem; height: 1.35rem; grid-row: span 2; color: var(--t-gold-l); }
+.tskill b { font-size: 0.8rem; font-weight: 600; color: var(--t-text); }
+.tskill span { font-size: 0.64rem; color: var(--t-muted); line-height: 1.25; }
+.tskill:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.18); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
+.tskill.sel { border-color: var(--t-ok); box-shadow: 0 0 0 2px rgba(111, 208, 140, 0.35); }
+.tskill.ult {
+  border-color: rgba(255, 138, 61, 0.55);
+  background: linear-gradient(180deg, rgba(255, 138, 61, 0.3), rgba(194, 24, 60, 0.32));
+}
+.tskill.ult .ico { color: #ffe7c2; }
+.tskill.heal { border-color: rgba(120, 230, 160, 0.45); }
+.tskill:disabled { cursor: not-allowed; filter: grayscale(0.85) brightness(0.7); }
+.tskill .cd {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  border-radius: 10px;
+  background: rgba(6, 4, 12, 0.82);
+  color: var(--t-gold-l);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.tskill .cd em { font-style: normal; font-size: 1.1rem; }
+.tskill .tagcd {
+  position: absolute;
+  top: -0.4rem;
+  right: 0.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #0d0916;
+  border: 1px solid var(--t-line);
+  color: var(--t-gold-l);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.textra { display: flex; flex-direction: column; gap: 0.3rem; justify-content: center; }
+.textra .tbtn { width: 100%; text-align: center; }
+.textra .burn { border-color: rgba(138, 77, 255, 0.6); background: linear-gradient(180deg, rgba(138, 77, 255, 0.35), rgba(60, 30, 120, 0.3)); color: #e9dcff; }
+.textra .burn[aria-pressed='true'] { box-shadow: 0 0 0 2px rgba(138, 77, 255, 0.5); }
+.textra small { color: var(--t-muted); font-size: 0.62rem; text-align: center; }
+
+/* ------------------------------- bannières ------------------------------ */
+
+.tbanner {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: radial-gradient(circle at 50% 50%, rgba(20, 8, 30, 0.82), rgba(4, 2, 8, 0.96));
+  animation: tFade 0.4s ease-out;
+}
+.tbanner h2 {
+  margin: 0;
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: clamp(1.6rem, 5vw, 3.2rem);
+  letter-spacing: 0.08em;
+  color: var(--t-gold-l);
+  text-shadow: 0 0 30px rgba(227, 192, 119, 0.6);
+  text-align: center;
+}
+.tbanner p { margin: 0; color: var(--t-muted); font-size: 0.85rem; text-align: center; max-width: 34rem; }
+.tbanner .acts { display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; justify-content: center; }
+.tbanner.lose h2 { color: #ff9d9d; text-shadow: 0 0 30px rgba(194, 24, 60, 0.6); }
+@keyframes tFade { from { opacity: 0; } to { opacity: 1; } }
+
+.tultname {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  z-index: 22;
+  transform: translateX(-50%);
+  padding: 0.5rem 1.6rem;
+  border-top: 2px solid var(--t-gold);
+  border-bottom: 2px solid var(--t-gold);
+  background: linear-gradient(90deg, transparent, rgba(20, 8, 4, 0.92) 20%, rgba(20, 8, 4, 0.92) 80%, transparent);
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: clamp(1.1rem, 3.4vw, 2.2rem);
+  letter-spacing: 0.14em;
+  color: var(--t-gold-l);
+  text-shadow: 0 0 24px rgba(255, 138, 61, 0.8);
+  pointer-events: none;
+  animation: tUlt 1.5s ease-out forwards;
+  white-space: nowrap;
+}
+@keyframes tUlt {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.85); letter-spacing: 0.5em; }
+  25% { opacity: 1; transform: translateX(-50%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.04); }
+}
+
+/* ------------------------------ choix des héros ------------------------- */
+
+.picker {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(4, 2, 8, 0.86);
+  animation: tFade 0.2s ease-out;
+}
+.picker-box {
+  width: min(60rem, 100%);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border: 1px solid var(--t-line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--t-panel-2), #100b1c);
+  box-shadow: var(--t-lift);
+}
+.picker-box h3 { margin: 0; font-family: 'Cinzel', serif; color: var(--t-gold-l); font-size: 1rem; }
+.picker-box h3 small { display: block; color: var(--t-muted); font-family: inherit; font-size: 0.72rem; margin-top: 0.15rem; }
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.45rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+.pcard {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem;
+  border: 1px solid var(--t-line-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+}
+.pcard img { width: 2.6rem; height: 2.6rem; border-radius: 8px; object-fit: cover; background: #241a36; }
+.pcard b { display: block; font-size: 0.78rem; }
+.pcard span { display: block; color: var(--t-muted); font-size: 0.62rem; line-height: 1.3; }
+.pcard:hover { border-color: var(--t-gold); background: rgba(227, 192, 119, 0.1); }
+.pcard.taken { opacity: 0.35; cursor: not-allowed; }
+.pcard .rar { font-weight: 700; font-size: 0.6rem; letter-spacing: 0.08em; }
+.pcard .rar.SSR { color: #ffd479; }
+.pcard .rar.SR { color: #b79cff; }
+.pcard .rar.R { color: #9fd0ff; }
+
+/* ------------------------------ petit écran ----------------------------- */
+
+@media (max-width: 1100px) {
+  .tour-field { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto; }
+  .tour-center { grid-column: 1 / -1; }
+  .tour-log { max-height: 8rem; }
+  .tour-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .twho, .textra { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  .tour-side { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.3rem; }
+  .tcard { grid-template-columns: 2.3rem 1fr; padding: 0.3rem; }
+  .tcard .tavatar, .tcard .tavatar img { width: 2.3rem; height: 2.3rem; }
+  .tname { font-size: 0.68rem; }
+  .tstatus { min-height: 0.8rem; }
+}
+
+/* --------------------------------------------------------------------- */
+/*  Dans le jeu : l'écran est monté DANS #ui, sous l'écran de résultat     */
+/* --------------------------------------------------------------------- */
+
+/*
+ * Le laboratoire (`?tour`) couvre tout l'écran (position: fixed, z-index 60).
+ * Dans le jeu, l'écran doit cohabiter avec l'interface de combat : il est donc
+ * placé en absolu dans `#ui` (qui est en pointer-events: none) avec un z-index
+ * inférieur à celui de `.bh-overlay` (40) — c'est ce qui permet à l'écran de
+ * victoire/défaite du jeu de s'afficher par-dessus le champ de bataille figé.
+ */
+.tour.ingame {
+  position: absolute;
+  z-index: 35;      /* au-dessus du hub, en dessous de .bh-overlay (40) */
+  pointer-events: auto;
+}
+.tour.ingame button,
+.tour.ingame .pcard { pointer-events: auto; }
