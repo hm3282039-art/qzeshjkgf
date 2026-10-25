@@ -2737,3 +2737,49 @@ body.in-battle .npc-bubble { display: none; }
   0%, 100% { box-shadow: 0 0 0 0.16rem rgba(30, 10, 6, 0.95), 0 0 0 0.3rem #ff8a3d, 0 0.5rem 1.4rem #000c, 0 0 1.4rem rgba(255, 138, 61, 0.55), inset 0 0 1.2rem #0009; }
   50% { box-shadow: 0 0 0 0.16rem rgba(30, 10, 6, 0.95), 0 0 0 0.3rem #ffb066, 0 0.5rem 1.4rem #000c, 0 0 2.4rem rgba(255, 138, 61, 0.95), inset 0 0 1.2rem #0009; }
 }
+
+/* ---------- Barre de capacités : une seule ligne, jamais éparpillée ---------- */
+.tb-skills { display: grid; grid-auto-flow: column; grid-auto-columns: auto; gap: 0.8rem; align-items: end; }
+
+/* ---------- Signatures DOM des capacités (visibles quoi qu'il arrive) ---------- */
+.sfx { position: absolute; inset: 0; pointer-events: none; z-index: 45; overflow: hidden; }
+.sfx-slash::before {
+  content: ''; position: absolute; left: 10%; right: 12%; top: 46%; height: 0.55rem;
+  border-radius: 1rem; transform: rotate(-13deg) scaleX(0); transform-origin: left center;
+  background: linear-gradient(90deg, transparent, #ffe0a0 25%, #ff7a2a 65%, transparent);
+  box-shadow: 0 0 1.6rem #ff8a3a, 0 0 0.5rem #fff3;
+  animation: sfx-slash 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes sfx-slash {
+  0% { transform: rotate(-13deg) scaleX(0); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: rotate(-13deg) scaleX(1); opacity: 0; }
+}
+.sfx-shield::before {
+  content: ''; position: absolute; left: 32%; top: 54%; width: 17rem; height: 17rem;
+  margin: -8.5rem 0 0 -8.5rem; border-radius: 50%;
+  border: 0.4rem solid #ffb05a; box-shadow: 0 0 2.2rem #ff8a3a, inset 0 0 2.4rem #ff8a3a88;
+  animation: sfx-shield 0.65s ease-out forwards;
+}
+@keyframes sfx-shield {
+  0% { transform: scale(0.15); opacity: 0; }
+  30% { opacity: 0.95; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+.sfx-ult::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 64% 52%, #ff8a3add, #ff8a3a00 62%);
+  animation: sfx-ult 0.75s ease-out forwards;
+}
+.sfx-ult::after {
+  content: ''; position: absolute; left: 12%; right: 12%; top: 40%; height: 1.1rem;
+  border-radius: 2rem; transform: rotate(-8deg) scaleX(0); transform-origin: center;
+  background: linear-gradient(90deg, transparent, #fff 30%, #ffb05a 50%, #ff7a2a 70%, transparent);
+  box-shadow: 0 0 2.4rem #ff8a3a;
+  animation: sfx-ultbeam 0.6s 0.1s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes sfx-ult { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes sfx-ultbeam { 0% { transform: rotate(-8deg) scaleX(0); opacity: 0; } 30% { opacity: 1; } 100% { transform: rotate(-8deg) scaleX(1); opacity: 0; } }
+
+/* ---------- Numéro de version (page de test) ---------- */
+.bh-pick-ver { position: fixed; right: 10px; bottom: 8px; font: 700 11px system-ui, sans-serif; color: #8f86a8; letter-spacing: 0.06em; }

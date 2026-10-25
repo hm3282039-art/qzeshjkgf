@@ -264,7 +264,7 @@ async function boot(): Promise<void> {
         <span class="bh-pick-tag">${done ? 'JOUER \u25b6' : '\ud83d\udd12 bient\u00f4t'}</span>
       </button>`;
     }).join('');
-    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div>`;
+    el.innerHTML = `<h2 class="bh-pick-title">Choisis ton perso</h2><div class="bh-pick-grid">${cards}</div><span class="bh-pick-ver">v2.6.4</span>`;
     el.querySelectorAll<HTMLButtonElement>('button[data-hero]').forEach((b) => {
       b.addEventListener('click', () => {
         const hero = HEROES.find((h) => h.id === b.dataset.hero);
@@ -367,6 +367,7 @@ async function boot(): Promise<void> {
         state: () => hud.setTurn(snapshot()),
         hint: (t) => hud.setTurnHint(t),
         pick: (uids) => battle.setPickable(uids, uids ? (uid) => ctl.tapTarget(uid) : null),
+        skillFx: (k) => hud.skillFx(k),
         waitCine: async () => {
           for (let g = 0; g < 500; g++) {
             if (!battle.director.busy && !battle.director.frozen) return;

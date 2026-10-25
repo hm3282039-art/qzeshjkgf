@@ -541,6 +541,18 @@ export class BattleHud extends Emitter<HudEvents> {
     }
   }
 
+  /**
+   * Signature visuelle DOM d'une capacité : une couche au-dessus de tout, animée en
+   * CSS, donc visible même si la scène 3D ne montre rien. Slash traversant pour la
+   * frappe, dôme pour le bouclier, flash plein écran pour l'ulti.
+   */
+  skillFx(kind: 'slash' | 'shield' | 'ult'): void {
+    const host = document.createElement('div');
+    host.className = `sfx sfx-${kind}`;
+    this.el.appendChild(host);
+    setTimeout(() => host.remove(), 950);
+  }
+
   setTurnHint(html: string): void {
     if (this.tipEl) this.tipEl.innerHTML = html;
   }

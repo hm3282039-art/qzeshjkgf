@@ -26,6 +26,8 @@ export interface TurnUi {
   pick(uids: number[] | null): void;
   /** Attend la fin de la cinématique d'ultime en cours (le réalisateur gele la scène). */
   waitCine(): Promise<void>;
+  /** Signature visuelle DOM d'une capacité (slash / bouclier / flash d'ulti). */
+  skillFx(kind: 'slash' | 'shield' | 'ult'): void;
 }
 
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
@@ -247,6 +249,12 @@ export class TurnController {
           for (const f of HERO_FX[chid]?.cast?.[cidx] ?? []) {
             b.emit('fx', { type: f as FxType, u: cu ?? undefined, x: cu?.x, y: cu?.y });
             await wait(170 / this.speed);
+          }
+          // Signature DOM garantie visible, différente pour chaque capacité.
+          if (chid === 'kael') {
+            if (cidx === 0) this.ui.skillFx('slash');
+            else if (cidx === 1) this.ui.skillFx('shield');
+            else if (cidx === 3) this.ui.skillFx('ult');
           }
           break;
         }
