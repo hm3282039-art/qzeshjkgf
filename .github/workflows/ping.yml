@@ -1,9 +1,0 @@
-name: ping
-on:
-  push:
-    branches: [arena/a5d44250-qzeshjkgf]
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ok
