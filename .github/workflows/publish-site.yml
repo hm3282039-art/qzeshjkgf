@@ -5,27 +5,19 @@ on:
     branches: [arena/a5d44250-qzeshjkgf]
 
 jobs:
-  deploy:
+  buildjob:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: build single-file
+      - name: build
         working-directory: game
         run: |
           npm ci
           npm run build
-      - name: "publie sur gh-pages (convention du depot : build single-file)"
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git config --global user.name "arena-deploy-bot"
-          git config --global user.email "arena-deploy-bot@users.noreply.github.com"
-          git clone --depth 1 --branch gh-pages "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" /tmp/gh
-          cp game/dist/index.html /tmp/gh/index.html
-          cd /tmp/gh
-          git add -A
-          git commit -m "deploy v2.6 (build CI depuis $GITHUB_REF_NAME @ $GITHUB_SHA)" || echo "rien de nouveau"
-          git push origin gh-pages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: game/dist/index.html
